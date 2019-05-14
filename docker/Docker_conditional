@@ -1,0 +1,40 @@
+from Ubuntu:18.04
+
+ENV LC_ALL C.UTF-8
+ENV LANG C.UTF-8
+ENV R_VERSION 3.5.1
+ENV SAIGE_DIST https://github.com/weizhouUMICH/SAIGE/blob/master/SAIGE_0.35.8.3_R_x86_64-pc-linux-gnu.tar.gz
+
+RUN apt update && apt install software-properties-common \
+    && apt install software-properties-common && add-apt-repository ppa:deadsnakes/ppa \
+    apt update && apt install python3.7 curl make gcc g++ cmake gfortran libreadline-dev \
+    libz-dev libbz2-dev liblzma-dev libpcre3-dev libssl-dev libcurl4-openssl-dev \
+    libopenblas-dev default-jre unzip libboost-all-dev \
+    libpng-dev libcairo2-dev tabix --yes && rm -rf /var/lib/apt/lists/* \
+    &&  python3.7 -m pip install --no-cache numpy scipy pandas cget
+
+    WORKDIR /tmp
+    RUN curl -O https://cloud.r-project.org/src/base/R-3/R-${R_VERSION}.tar.gz \
+    && tar xvzf R-${R_VERSION}.tar.gz
+    WORKDIR /tmp/R-${R_VERSION}
+
+    RUN ./configure --with-x=no --with-blas="-lopenblas" \
+    && make \
+    && mkdir -p /usr/local/lib/R/lib \
+    && make install
+
+    WORKDIR /tmp
+    RUN rm -rf /tmp/R-${R_VERSION}*
+
+    RUN curl -OL ${SAIGE_DIST} \
+    && unzip $basename($SAIGE_DIST) \
+    && mv SAIGE* SAIGE
+
+    # Install R packages and SAIGE
+    RUN Rscript SAIGE/extdata/install_packages.R \
+    && R CMD INSTALL SAIGE
+
+    # Make R scripts to /usr/local/bin to make executable and cleanup SAIGE source code
+    RUN mv SAIGE/extdata/step1_fitNULLGLMM.R SAIGE/extdata/step2_SPAtests.R SAIGE/extdata/createSparseGRM.R /usr/local/bin/ \
+        && rm -rf SAIGE \
+        && rm master.zip
