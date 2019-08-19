@@ -1,40 +1,70 @@
-from Ubuntu:18.04
+from ubuntu:18.04
 
 ENV LC_ALL C.UTF-8
 ENV LANG C.UTF-8
 ENV R_VERSION 3.5.1
-ENV SAIGE_DIST https://github.com/weizhouUMICH/SAIGE/blob/master/SAIGE_0.35.8.3_R_x86_64-pc-linux-gnu.tar.gz
 
-RUN apt update && apt install software-properties-common \
-    && apt install software-properties-common && add-apt-repository ppa:deadsnakes/ppa \
-    apt update && apt install python3.7 curl make gcc g++ cmake gfortran libreadline-dev \
-    libz-dev libbz2-dev liblzma-dev libpcre3-dev libssl-dev libcurl4-openssl-dev \
-    libopenblas-dev default-jre unzip libboost-all-dev \
-    libpng-dev libcairo2-dev tabix --yes && rm -rf /var/lib/apt/lists/* \
-    &&  python3.7 -m pip install --no-cache numpy scipy pandas cget
+LABEL maintainer="mkurki@broadinstitute.org"
 
-    WORKDIR /tmp
-    RUN curl -O https://cloud.r-project.org/src/base/R-3/R-${R_VERSION}.tar.gz \
+ENV SRC_BRANCH binary_conditional
+ENV REPO_SRC_URL https://github.com/weizhouUMICH/SAIGE
+
+# Install dependencies and python 3.7
+RUN apt-get update && apt install software-properties-common -y \
+    && add-apt-repository ppa:deadsnakes/ppa --yes && apt update \
+    && apt-get install -y \
+    build-essential \
+    cmake \
+    gfortran \
+    curl \
+    libboost-all-dev \
+    libbz2-dev \
+    libcairo2-dev \
+    libcurl4-openssl-dev \
+    liblzma-dev \
+    libopenblas-dev \
+    libpcre3-dev \
+    libpng-dev \
+    libreadline-dev \
+    libssl-dev \
+    libz-dev \
+    python3.7 \
+    python3-pip \
+    unzip \
+    git \
+    && python3.7 -m pip install --no-cache numpy scipy pandas cget \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /tmp
+
+# Install R from source
+RUN curl -O https://cloud.r-project.org/src/base/R-3/R-${R_VERSION}.tar.gz \
     && tar xvzf R-${R_VERSION}.tar.gz
-    WORKDIR /tmp/R-${R_VERSION}
 
-    RUN ./configure --with-x=no --with-blas="-lopenblas" \
+WORKDIR /tmp/R-${R_VERSION}
+
+RUN ./configure --with-x=no --with-blas="-lopenblas" \
     && make \
     && mkdir -p /usr/local/lib/R/lib \
     && make install
 
-    WORKDIR /tmp
-    RUN rm -rf /tmp/R-${R_VERSION}*
+WORKDIR /tmp
 
-    RUN curl -OL ${SAIGE_DIST} \
-    && unzip $basename($SAIGE_DIST) \
-    && mv SAIGE* SAIGE
+# Cleanup R source code
+RUN rm -rf /tmp/R-${R_VERSION}*
 
-    # Install R packages and SAIGE
-    RUN Rscript SAIGE/extdata/install_packages.R \
-    && R CMD INSTALL SAIGE
+RUN git clone --depth 1 -b $SRC_BRANCH $REPO_SRC_URL
 
-    # Make R scripts to /usr/local/bin to make executable and cleanup SAIGE source code
-    RUN mv SAIGE/extdata/step1_fitNULLGLMM.R SAIGE/extdata/step2_SPAtests.R SAIGE/extdata/createSparseGRM.R /usr/local/bin/ \
-        && rm -rf SAIGE \
-        && rm master.zip
+RUN cp SAIGE/configure tmpconf && if [ $SRC_BRANCH != "master" ]; then head -n 1 tmpconf > f && tail -n +2 tmpconf |  sed -e 's/#//g' -e 's/^install.*$//g' >s && cat f s > SAIGE/configure; fi
+
+
+# Install R packages and SAIGE
+RUN Rscript SAIGE/extdata/install_packages.R \
+    && R CMD INSTALL SAIGE \
+    && mv SAIGE/extdata/step1_fitNULLGLMM.R SAIGE/extdata/step2_SPAtests.R \
+    SAIGE/extdata/createSparseGRM.R /usr/local/bin/ \
+    && rm -rf SAIGE
+
+COPY scripts/do_condition_locus.py scripts/postscript.py scripts/qqplot.R /usr/local/bin/
+
+WORKDIR /
