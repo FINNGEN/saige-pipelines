@@ -6,7 +6,7 @@ ENV R_VERSION 3.5.1
 
 LABEL maintainer="mkurki@broadinstitute.org"
 
-ENV SRC_BRANCH binary_conditional
+ENV SRC_BRANCH master
 ENV REPO_SRC_URL https://github.com/weizhouUMICH/SAIGE
 
 # Install dependencies and python 3.7
@@ -65,6 +65,6 @@ RUN Rscript SAIGE/extdata/install_packages.R \
     SAIGE/extdata/createSparseGRM.R /usr/local/bin/ \
     && rm -rf SAIGE
 
-COPY scripts/do_condition_locus.py scripts/postscript.py scripts/qqplot.R /usr/local/bin/
+COPY scripts/do_condition_locus.py scripts/postscript.py scripts/generate_conditional_analysis_config.py scripts/qqplot.R /usr/local/bin/
 
 WORKDIR /

@@ -11,16 +11,16 @@ CHR_TAG="{CHR}"
 def row_conf(pheno, chr, start, stop, condition_snp, null_mask, var_ratio_mask, bgen_mask, sample_file, p_thr):
 
     return null_mask.replace(PHENO_TAG, pheno).cat( [var_ratio_mask.replace(PHENO_TAG,pheno) ,
-                                                      bgen_mask.replace(PHENO_TAG, pheno) + "bgen",
-                                                      bgen_mask.replace(PHENO_TAG, pheno) + "bgi",
+                                                      bgen_mask.replace(PHENO_TAG, pheno),
+                                                      bgen_mask.replace(PHENO_TAG, pheno),
                                                       sample_file,
                                                       chr, start,stop, condition_snp, p_thr], sep="\t")
 
 
 def row_conf_line(row, null_mask, var_ratio_mask, bgen_mask, sample_file, p_thr):
-    chrom = row.chr.replace("chr","") if is_string_dtype(row.chr) else str(row.chr)
+    chrom = row.chr.replace("chr","") if isinstance(row.chr , str) else row.chr
     return f'{re.sub(PHENO_TAG,row.pheno,null_mask,flags=re.IGNORECASE)}\t{re.sub(PHENO_TAG,row.pheno,var_ratio_mask,flags=re.IGNORECASE)}\t' \
-        f'{re.sub(CHR_TAG,chrom,bgen_mask,flags=re.IGNORECASE)}.bgen\t{re.sub(CHR_TAG,chrom,bgen_mask,flags=re.IGNORECASE)}.bgi\t' \
+        f'{re.sub(CHR_TAG,chrom,bgen_mask,flags=re.IGNORECASE)}\t{re.sub(CHR_TAG,chrom,bgen_mask,flags=re.IGNORECASE)}.bgi\t' \
         f'{sample_file}\t{row.chr}\t{row.start}\t{row.stop}\t{row.condition_snp}\t{p_thr}'
 
 
@@ -40,6 +40,15 @@ def from_variants(args):
                        dtype={args.p_col:float})
 
     vars = vars[ vars[args.p_col]<args.p_threshold ].sort_values(by=[args.pheno_col,args.p_col])
+    if args.exclude_regions:
+        excl = args.exclude_regions.split(";")
+
+        for e in excl:
+            er = e.split(",")
+            if len(er)!=3:
+                raise Exception("Illegal exclude region definition. Define regions by ; separated list of chr,start, stop")
+            vars = vars[ (vars[args.chr_col]!=er[0])|  (vars[args.pos_col] < int(float(er[1]))) |  (vars[args.pos_col] > int(float(er[2]))) ]
+
     loc_width = args.locus_padding
 
     loci = []
@@ -47,7 +56,7 @@ def from_variants(args):
     while len(vars.index) > 0:
         top = vars.iloc[0]
         loc_start = max(top[args.pos_col] - loc_width,1)
-        loc_end = top.pos + loc_width
+        loc_end = top[args.pos_col] + loc_width
         loci.append( top )
         ## we can sort by pheno and position and do the scanning linearly (n + n*log(n) )
         vars = vars[ (vars[args.pheno_col] != top[args.pheno_col]) | (vars[args.chr_col]!= top[args.chr_col]) | (vars[args.pos_col]<loc_start) | ( vars[args.pos_col]>loc_end ) ]
@@ -75,7 +84,7 @@ def from_variants(args):
     mergs = pd.concat(merged, axis=1).T
 
     r = mergs.apply(partial(row_conf_line, null_mask=args.null_file_mask, var_ratio_mask=args.var_ratio_mask,
-                           bgen_mask=args.bgen_file_mask, sample_file=args.sample_file, p_thr=args.p_threshold), 1)
+                           bgen_mask=args.bgen_file_mask, sample_file=args.sample_file, p_thr=args.p_condition_threshold), 1)
 
     r.to_csv(args.output + ".merged", quoting=csv.QUOTE_NONE, index=False, header=False)
     loci_df.to_csv(args.output,sep="\t", index=False, header=True)
@@ -101,6 +110,9 @@ if __name__ == '__main__':
     parser.add_argument('--p_threshold', action='store', type=float, default=5e-8,
                         help='p-value threshold for signal inclusion')
 
+    parser.add_argument('--p_condition_threshold', action='store', type=float, default=5e-8,
+                        help='p-value threshold for signal inclusion after first conditional analysis')
+
     cmd_parsers = parser.add_subparsers(title="commands", help="Sub command help")
     loci_cmd = cmd_parsers.add_parser('loci')
     loci_cmd.add_argument('locus_file', action='store', type=str,
@@ -112,6 +124,9 @@ if __name__ == '__main__':
                           help='file giving candidate variants and phenotypes (e.g. all gw-sig variants) with at least 4 columns: PHENO chr pos ref alt p-value')
     vars_cmd.add_argument('--locus_padding', action='store', type=int, default=1500000,
                           help='Nucleotides +- from lead snp')
+
+    vars_cmd.add_argument('--exclude_regions', action='store', type=str,
+                                                help='regions to exclude semicolon separated list of chr,start,end triplets')
 
     vars_cmd.set_defaults(func=from_variants)
 
