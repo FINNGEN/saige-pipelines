@@ -1,0 +1,32 @@
+{
+    "saige.docker": "gcr.io/finngen-refinery-dev/saige:r4",
+    "saige.phenolistfile": "gs://r4_data_west1/pheno/LIST-OF-PHENOS.txt",
+    "saige.loco": "FALSE",
+
+    "saige.null.bedfile": "gs://r4_data_west1/grm/R4_GRM_V1.bed",
+    "saige.null.phenofile": "gs://r4_data_west1/pheno/R4_COV_PHENO_V1.txt.gz",
+    "saige.null.covariates": "SEX_IMPUTED,AGE_AT_DEATH_OR_NOW,PC1,PC2,PC3,PC4,PC5,PC6,PC7,PC8,PC9,PC10,BATCH_AxiomGT1_b01.calls,BATCH_AxiomGT1_b02.calls,BATCH_AxiomGT1_b01.calls,BATCH_AxiomGT1_b02.calls,BATCH_AxiomGT1_b03.calls,BATCH_AxiomGT1_b04.calls,BATCH_AxiomGT1_b05.calls,BATCH_AxiomGT1_b06.calls,BATCH_AxiomGT1_b07.calls,BATCH_AxiomGT1_b08.calls,BATCH_AxiomGT1_b09.calls,BATCH_AxiomGT1_b10.calls,BATCH_AxiomGT1_b11.calls,BATCH_AxiomGT1_b12.calls,BATCH_AxiomGT1_b13.calls,BATCH_AxiomGT1_b14.calls,BATCH_AxiomGT1_b15.calls,BATCH_AxiomGT1_b17.calls,BATCH_AxiomGT1_b18.calls,BATCH_AxiomGT1_b19.calls,BATCH_AxiomGT1_b20.calls,BATCH_AxiomGT1_b21.calls,BATCH_AxiomGT1_b22.calls,BATCH_AxiomGT1_b23.calls,BATCH_AxiomGT1_b24.calls,BATCH_AxiomGT1_b25.calls,BATCH_AxiomGT1_b26.calls,BATCH_AxiomGT1_b27.calls,BATCH_AxiomGT1_b28.calls,BATCH_AxiomGT1_b29.calls,BATCH_BOTNIA_DGI_R4_Drem,BATCH_BOTNIA_T2DGo_R4_Drem,BATCH_Corogene_sanger_R4,BATCH_FINRISK_bf_R4_Drem,BATCH_FINRISK_Corogene_R4_Drem,BATCH_FINRISK_Engage_R4_Drem,BATCH_FINRISK_Finpcga_R4_Drem,BATCH_FINRISK_FR02_BROAD_R4_Drem,BATCH_FINRISK_FR12_R4_Drem,BATCH_FINRISK_MRPRED_R4_Drem,BATCH_FINRISK_PalotieCoreExome_R4_Drem,BATCH_FINRISK_predictCVD_Corogene_tarto_R4,BATCH_FINRISK_SUMMIT_R4_Drem,BATCH_GENERISK_1_15_R4,BATCH_H2000_Broad_R4_Drem,BATCH_H2000_FIMM_R4_Drem,BATCH_H2000_Genmets_R4_Drem,BATCH_Migraine_1_R4_Drem,BATCH_Migraine_2_R4_Drem,BATCH_super_1_R4,BATCH_super_2_R4,BATCH_twins1_R4,BATCH_twins2_R4",
+    "saige.null.sampleID": "FINNGENID",
+    "saige.null.traitType": "binary",
+    "saige.null.traceCVcutoff": 0.0025,
+    "saige.null.ratioCVcutoff": 0.001,
+    "saige.null.cpu": 32,
+    "saige.null.mem": 7,
+    "saige.null.minCovariateCount": 10,
+
+    "saige.test_combine.bgenlistfile": "gs://r4_data_west1/R4_bgen_pieces.txt",
+
+    "saige.test_combine.test.samplefile": "gs://r4_data_west1/R4_183694_samples.txt",
+    "saige.test_combine.test.minmac": 5,
+    "saige.test_combine.test.cpu": 1,
+    "saige.test_combine.test.mem": 3.75,
+
+    "saige.test_combine.combine.blacklist": "gs://r4_data_west1/nullfile.txt",
+    "saige.test_combine.combine.info_threshold": 0.6,
+    "saige.test_combine.combine.cpu": 1,
+    "saige.test_combine.combine.mem": 7,
+    "saige.test_combine.combine.chrcol": "#chrom",
+    "saige.test_combine.combine.p_valcol": "pval",
+    "saige.test_combine.combine.bp_col": "pos",
+    "saige.test_combine.combine.loglog_pval": 10
+}

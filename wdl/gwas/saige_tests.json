@@ -1,0 +1,22 @@
+{
+    "saige_tests.docker": "gcr.io/finngen-refinery-dev/saige:r4",
+    "saige_tests.phenolistfile": "gs://r4_data_west1/pheno/LIST-OF-PHENOS.txt",
+    "saige_tests.nullfiletemplate": "gs://r4_data_west1/nulls/R4_GRM_V1-PHENO.rda",
+    "saige_tests.loco": "FALSE",
+
+    "saige_tests.test_combine.bgenlistfile": "gs://r4_data_west1/R4_bgen_pieces.txt",
+
+    "saige_tests.test_combine.test.samplefile": "gs://r4_data_west1/R4_183694_samples.txt",
+    "saige_tests.test_combine.test.minmac": 5,
+    "saige_tests.test_combine.test.cpu": 1,
+    "saige_tests.test_combine.test.mem": 3.75,
+
+    "saige_tests.test_combine.combine.blacklist": "gs://r4_data_west1/nullfile.txt",
+    "saige_tests.test_combine.combine.info_threshold": 0.6,
+    "saige_tests.test_combine.combine.cpu": 1,
+    "saige_tests.test_combine.combine.mem": 7,
+    "saige_tests.test_combine.combine.chrcol": "#chrom",
+    "saige_tests.test_combine.combine.p_valcol": "pval",
+    "saige_tests.test_combine.combine.bp_col": "pos",
+    "saige_tests.test_combine.combine.loglog_pval": 10
+}
