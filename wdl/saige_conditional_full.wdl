@@ -46,7 +46,7 @@ task generate_conditional_analysis_config {
     String alt_col
     Float p_val_threshold
     Float conditioning_pval_threshold
-
+    Boolean add_chr
     String excludes=""
 
     String excl_switch =  if excludes!="" then "--exclude_regions " + excludes else ""
@@ -55,8 +55,11 @@ task generate_conditional_analysis_config {
         cat <( head -n 1 ${sig_vars[0]}) <( tail -q -n+2 ${sep=' ' sig_vars} ) > all_vars
         generate_conditional_analysis_config.py --p_threshold ${p_val_threshold} --p_condition_threshold ${conditioning_pval_threshold} \
          ${null_file_mask} ${var_ratio_mask} ${bgen_file_mask} ${sample_file} ${output_conf} vars all_vars --locus_padding ${padding} \
-         --pos_col ${pos_col} --chr_col ${chr_col} --ref_col ${ref_col} --alt_col ${alt_col} --p_col ${pval_col} ${excl_switch}
+         --pos_col ${pos_col} --chr_col "${chr_col}" --ref_col ${ref_col} --alt_col ${alt_col} --p_col ${pval_col} ${excl_switch} \
+         ${true='--add_chr' false=' ' add_chr}
     >>>
+
+
 
     output {
         File conf="${output_conf}.merged"
@@ -84,6 +87,8 @@ workflow conditional_analysis {
     String pval_col
     String docker
 
+    Boolean add_chr
+
     Array[Array[String]] pheno_to_cond = read_tsv(phenos_to_cond)
     scatter (p in pheno_to_cond) {
         call extract_cond_regions {
@@ -94,7 +99,7 @@ workflow conditional_analysis {
     call generate_conditional_analysis_config {
         input: sig_vars=extract_cond_regions.gw_sig_res, docker=docker,pval_col=pval_col,
             p_val_threshold=locus_pval_threshold, conditioning_pval_threshold=conditioning_pval_threshold,
-            chr_col=chr_col,pos_col=pos_col, ref_col=ref_col, alt_col=alt_col
+            chr_col=chr_col,pos_col=pos_col, ref_col=ref_col, alt_col=alt_col,add_chr=add_chr
     }
 
     call cond.conditional_analysis {

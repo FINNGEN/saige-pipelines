@@ -1,7 +1,7 @@
 {
-  "conditional_analysis.condition.disk": "100",
-  "conditional_analysis.loci_to_cond_conf": "gs://r3_data/conditional/r3_conditional.nohla.conf.merged",
-  "conditional_analysis.condition.cpu": "1",
-  "conditional_analysis.condition.docker": "gcr.io/finngen-refinery-dev/saige:0.35.8.3_pipev4",
-  "conditional_analysis.condition.mem": "32"
+  "conditional_analysis.disk": "100",
+  "conditional_analysis.loci_to_cond_conf": "gs://r4_data/conditional/R4_conditional_negative",
+  "conditional_analysis.cpu": "1",
+  "conditional_analysis.docker": "gcr.io/finngen-refinery-dev/saige:0.35.8.8_cond1",
+  "conditional_analysis.mem": "16"
 }
