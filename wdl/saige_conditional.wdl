@@ -31,7 +31,7 @@ task condition {
     runtime {
         docker: "${docker}"
         cpu: "${cpu}"
-        memory: "${mem} GB"
+        memory: "16 GB"
         disks: "local-disk ${disk} HDD"
         zones: "europe-west1-b"
         preemptible: 2

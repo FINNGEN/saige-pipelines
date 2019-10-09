@@ -17,11 +17,13 @@ def row_conf(pheno, chr, start, stop, condition_snp, null_mask, var_ratio_mask, 
                                                       chr, start,stop, condition_snp, p_thr], sep="\t")
 
 
-def row_conf_line(row, null_mask, var_ratio_mask, bgen_mask, sample_file, p_thr):
-    chrom = row.chr.replace("chr","") if isinstance(row.chr , str) else row.chr
+def row_conf_line(row, null_mask, var_ratio_mask, bgen_mask, sample_file, p_thr, add_chr=False):
+    chrom = f'chr{row.chr}' if not row.chr.startswith('chr') else row.chr
+    chr_n = chrom.replace("chr","")
+    snp = f'chr{row.condition_snp}' if not row.condition_snp.startswith('chr') else row.condition_snp
     return f'{re.sub(PHENO_TAG,row.pheno,null_mask,flags=re.IGNORECASE)}\t{re.sub(PHENO_TAG,row.pheno,var_ratio_mask,flags=re.IGNORECASE)}\t' \
-        f'{re.sub(CHR_TAG,chrom,bgen_mask,flags=re.IGNORECASE)}\t{re.sub(CHR_TAG,chrom,bgen_mask,flags=re.IGNORECASE)}.bgi\t' \
-        f'{sample_file}\t{row.chr}\t{row.start}\t{row.stop}\t{row.condition_snp}\t{p_thr}'
+        f'{re.sub(CHR_TAG,chr_n,bgen_mask,flags=re.IGNORECASE)}\t{re.sub(CHR_TAG,chr_n,bgen_mask,flags=re.IGNORECASE)}.bgi\t' \
+        f'{sample_file}\t{chrom}\t{row.start}\t{row.stop}\t{snp}\t{p_thr}'
 
 
 
@@ -37,7 +39,8 @@ def from_locus(args):
 def from_variants(args):
 
     vars = pd.read_csv(args.snps_file, sep="\t", compression='gzip' if args.snps_file.endswith('gz') else 'infer',
-                       dtype={args.p_col:float})
+                       dtype={args.p_col:float, args.chr_col:str})
+
 
     vars = vars[ vars[args.p_col]<args.p_threshold ].sort_values(by=[args.pheno_col,args.p_col])
     if args.exclude_regions:
@@ -45,9 +48,10 @@ def from_variants(args):
 
         for e in excl:
             er = e.split(",")
+            print(f'Excluding {er}')
             if len(er)!=3:
                 raise Exception("Illegal exclude region definition. Define regions by ; separated list of chr,start, stop")
-            vars = vars[ (vars[args.chr_col]!=er[0])|  (vars[args.pos_col] < int(float(er[1]))) |  (vars[args.pos_col] > int(float(er[2]))) ]
+            vars = vars[ (vars[args.chr_col]!=er[0]) |  (vars[args.pos_col] < int(float(er[1]))) |  (vars[args.pos_col] > int(float(er[2]))) ]
 
     loc_width = args.locus_padding
 
@@ -67,7 +71,7 @@ def from_variants(args):
 
     def get_cols(s):
         return pd.Series({"pheno": s.PHENO, "chr": s[args.chr_col],
-                   "start": s[args.pos_col] - loc_width, "stop": s[args.pos_col] + loc_width,
+                   "start": max(s[args.pos_col] - loc_width,1), "stop": s[args.pos_col] + loc_width,
                    "condition_snp":f'{s[args.chr_col]}_{s[args.pos_col]}_{s[args.ref_col]}_{s[args.alt_col]}', "pval":s[args.p_col] })
 
     for i in range(0, len(loci_df.index) ):
@@ -83,8 +87,9 @@ def from_variants(args):
 
     mergs = pd.concat(merged, axis=1).T
 
+
     r = mergs.apply(partial(row_conf_line, null_mask=args.null_file_mask, var_ratio_mask=args.var_ratio_mask,
-                           bgen_mask=args.bgen_file_mask, sample_file=args.sample_file, p_thr=args.p_condition_threshold), 1)
+                           bgen_mask=args.bgen_file_mask, sample_file=args.sample_file, p_thr=args.p_condition_threshold, add_chr=args.add_chr), 1)
 
     r.to_csv(args.output + ".merged", quoting=csv.QUOTE_NONE, index=False, header=False)
     loci_df.to_csv(args.output,sep="\t", index=False, header=True)
@@ -137,6 +142,7 @@ if __name__ == '__main__':
     vars_cmd.add_argument('--alt_col', default="alt", type=str)
     vars_cmd.add_argument('--p_col', default="pval", type=str)
 
+    vars_cmd.add_argument('--add_chr', action='store_true', help="Adds chr prefix to chromosomes if they do not exist. Useful if bgens have chr but summary stats don't.")
 
     args = parser.parse_args()
 
