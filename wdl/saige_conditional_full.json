@@ -1,8 +1,8 @@
 {
   "conditional_analysis.generate_conditional_analysis_config.bgen_file_mask": "gs://r4_data_west1/bgen/R4_{CHR}.bgen",
   "conditional_analysis.conditional_analysis.cpu": "1",
-  "conditional_analysis.generate_conditional_analysis_config.excludes": "chr6,23e6,38e6",
-  "conditional_analysis.docker": "gcr.io/finngen-refinery-dev/saige:0.35.8.8_cond1",
+  "conditional_analysis.generate_conditional_analysis_config.excludes": "chr6,23e6,38e6;6,23e6,38e6",
+  "conditional_analysis.docker": "gcr.io/finngen-refinery-dev/saige/0.35.8.8_cond1.0.1",
   "conditional_analysis.phenos_to_cond": "gs://r4_data_west1/conditional/R4_PHEWEB_PHENOS_REST.files",
   "conditional_analysis.generate_conditional_analysis_config.output_conf": "R4_PHEWEB_PHENOS_LIMITED_URI_conditional_regions",
   "conditional_analysis.generate_conditional_analysis_config.sample_file": "gs://r4_data_west1/R4_183694_samples.txt",

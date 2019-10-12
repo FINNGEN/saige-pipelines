@@ -47,7 +47,7 @@ if __name__ == '__main__':
 
     logging.basicConfig(filename=f'{args.out_prefix+"_" if len(args.out_prefix)>0 else ""}{os.path.basename(args.null_file)}.conditional.log', filemode='w', format='%(asctime)s - %(message)s', level=logging.INFO)
 
-    out = f'{args.out_prefix+"_" if len(args.out_prefix)>0 else ""}{os.path.basename(args.null_file)}_1.conditional'
+    out = f'{args.out_prefix}{"_" if len(args.out_prefix)>0 else ""}{os.path.basename(args.null_file)}_{args.condition_snp}_1.conditional'
     cond_snps = [args.condition_snp]
     run_cond(args.null_file, args.variance_ratio_file, args.bgen_file, args.bgen_index, args.sample_file,args.chr,
              args.start, args.stop, out, cond_snps, args.min_mac, args.saige_script)
@@ -69,7 +69,7 @@ if __name__ == '__main__':
         while not r.empty:
             summary.write(f'{tab.join( str(v) for v in r.iloc[0].values)}\t{",".join(cond_snps)}\n')
             cond_snps.append(r.iloc[0].SNPID)
-            out = f'{args.out_prefix + "_" if len(args.out_prefix) > 0 else ""}{os.path.basename(args.null_file)}_{len(cond_snps)}.conditional'
+            out = f'{args.out_prefix + "_" if len(args.out_prefix) > 0 else ""}{os.path.basename(args.null_file)}_{args.condition_snp}_{len(cond_snps)}.conditional'
 
             run_cond(args.null_file, args.variance_ratio_file, args.bgen_file, args.bgen_index, args.sample_file, args.chr,
                      args.start, args.stop, out, cond_snps, args.min_mac, args.saige_script )
