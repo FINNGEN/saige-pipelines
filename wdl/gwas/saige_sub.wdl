@@ -47,6 +47,7 @@ task test {
 task combine {
 
     String pheno
+    String traitType
     Array[File] results
     File blacklist
     Float info_threshold
@@ -69,10 +70,17 @@ task combine {
             fi
         done
 
-        cat <(head -n 1 `basename ${results[0]}"DATAUNZIP"` | tr ' ' '\t') \
-        <(awk 'FNR>1 { printf "%s\t%d\t%s\t%s\t%s\t%s\t%.2f\t%.3e\t%.4f\t%d\t%.4f\t%.4f\t%.4f\t%.3e\t%.3e\t%d\t%.3e\t%.3e\t%.3e\t%.3e\n", \
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20 }' \
-        `find *DATAUNZIP | sort -V | tr '\n' ' '`) | sort -k1,1V -k2,2g -s > ${pheno} && \
+        if [[ ${traitType} == "binary" ]]; then
+            cat <(head -n 1 `basename ${results[0]}"DATAUNZIP"` | tr ' ' '\t') \
+            <(awk 'FNR>1 { printf "%s\t%d\t%s\t%s\t%s\t%s\t%.2f\t%.3e\t%.4f\t%d\t%.4f\t%.4f\t%.4f\t%.3e\t%.3e\t%d\t%.3e\t%.3e\t%.3e\t%.3e\n", \
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20 }' \
+            `find *DATAUNZIP | sort -V | tr '\n' ' '`) | sort -k1,1V -k2,2g -s > ${pheno}
+        else
+            cat <(head -n 1 `basename ${results[0]}"DATAUNZIP"` | tr ' ' '\t') \
+            <(awk 'FNR>1 { printf "%s\t%d\t%s\t%s\t%s\t%s\t%.2f\t%.3e\t%.4f\t%d\t%.4f\t%.4f\t%.4f\t%.3e\t%.3e\t%d\t%.3e\t%.3e\n", \
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18 }' \
+            `find *DATAUNZIP | sort -V | tr '\n' ' '`) | sort -k1,1V -k2,2g -s > ${pheno}
+        fi
         postscript.py ${pheno} ${blacklist} ${info_threshold} > ${pheno}.pheweb && \
         qqplot.R --file ${pheno}.pheweb --bp_col "${bp_col}" --pval_col "${p_valcol}" --chrcol "${chrcol}" --loglog_pval ${loglog_pval} && \
         bgzip ${pheno} && \
@@ -108,6 +116,7 @@ workflow test_combine {
 
     String docker
     String pheno
+    String traitType
     String nullfile
     File bgenlistfile
     Array[String] bgenfiles = read_lines(bgenlistfile)
@@ -120,6 +129,6 @@ workflow test_combine {
     }
 
     call combine {
-        input: pheno=pheno, results=test.out, docker=docker
+        input: pheno=pheno, traitType=traitType, results=test.out, docker=docker
     }
 }

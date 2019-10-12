@@ -16,7 +16,8 @@ This in an example scenario creating new phenotypes in R4 and running those
 3. Clone this repo `git clone https://github.com/FINNGEN/saige-pipelines`
 4. Cromwell requires subworkflows be zipped: `cd saige-pipelines/wdl/gwas/ && zip saige_sub saige_sub.wdl`
 5. Change `saige.null.phenofile` in `saige.json` to the file from step 1
-6. Change `saige.phenolistfile` in `saige.json` to the file from step 2
+6. Change `saige.phenolistfile` in `saige.json` to the file from step 2  
+6.1. Use `"saige.traitType": "binary"` or `"saige.traitType": "quantitative"` depending on whether your traits are case/control or continuous
 7. Connect to Cromwell server  
     `gcloud compute ssh cromwell-fg-1 --project finngen-refinery-dev --zone europe-west1-b -- -fN -L localhost:5000:localhost:80`
 8. Submit workflow  
@@ -31,8 +32,8 @@ This in an example scenario creating new phenotypes in R4 and running those
 9. Use the given workflow id to look at timing diagram or to get metadata  
 `http://0.0.0.0:5000/api/workflows/v1/WORKFLOW_ID/timing`  
 `http://0.0.0.0:5000/api/workflows/v1/WORKFLOW_ID/metadata`
-10. Logs and results go to  
-`gs://fg-cromwell/saige/WORKFLOW_ID/`
+10. Logs and results go under  
+`gs://fg-cromwell/saige/WORKFLOW_ID`, plots `gs://fg-cromwell/saige/WORKFLOW_ID/call-test_combine/shard-*/**/*.png`, summary stats and tabix indexes `gs://fg-cromwell/saige/WORKFLOW_ID/call-test_combine/shard-*/**/*.gz*`
 
 ## Conditional analysis for genomewide significant regions.
 

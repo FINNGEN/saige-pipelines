@@ -20,6 +20,9 @@ task null {
 
     command {
 
+        # continuous traits don't have this file and optional outputs are not currently supported
+        echo "placeholder" > ${prefix}"_30markers.SAIGE.results.txt"
+
         step1_fitNULLGLMM.R \
             --plinkFile=${sub(bedfile, "\\.bed$", "")} \
             --phenoFile=${phenofile} \
@@ -58,17 +61,18 @@ workflow saige {
 
 	String docker
     File phenolistfile
+    String traitType
     Array[String] phenos = read_lines(phenolistfile)
     String loco
 
     scatter (pheno in phenos) {
 
         call null {
-            input: docker=docker, pheno=pheno, loco=loco
+            input: docker=docker, pheno=pheno, traitType=traitType, loco=loco
         }
 
         call sub.test_combine {
-            input: docker=docker, pheno=pheno, nullfile=null.modelfile, loco=loco
+            input: docker=docker, pheno=pheno, traitType=traitType, nullfile=null.modelfile, loco=loco
         }
     }
 }
