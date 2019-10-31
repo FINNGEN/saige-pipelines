@@ -34,7 +34,7 @@ task condition {
         memory: "16 GB"
         disks: "local-disk ${disk} HDD"
         zones: "europe-west1-b"
-        preemptible: 2
+        preemptible: 0
         noAddress: true
         maxRetries: 0
     }
