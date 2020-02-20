@@ -35,6 +35,15 @@ This in an example scenario creating new phenotypes in R4 and running those
 10. Logs and results go under  
 `gs://fg-cromwell/saige/WORKFLOW_ID`, plots `gs://fg-cromwell/saige/WORKFLOW_ID/call-test_combine/shard-*/**/*.png`, summary stats and tabix indexes `gs://fg-cromwell/saige/WORKFLOW_ID/call-test_combine/shard-*/**/*.gz*`
 
+## Docker file creation for R5 GWAS
+
+```
+git clone https://github.com/FINNGEN/saige-pipelines
+cd saige-pipelines
+git clone https://github.com/weizhouUMICH/SAIGE -b finngen_r5_jk
+docker build -t gcr.io/finngen-refinery-dev/saige:0.36.3.2 -f docker/Dockerfile_SAIGE_GWAS .
+```
+
 ## Conditional analysis for genomewide significant regions.
 
 wdl/saige_conditional_full.wdl and corresponding .json scan for genomewide significant regions and then performs conditional analysis on those regions, adding significant variants as covariate and iterating on that until no significant variants are left.
