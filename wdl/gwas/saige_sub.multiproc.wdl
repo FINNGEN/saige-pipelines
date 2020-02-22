@@ -43,7 +43,7 @@ task test {
     runtime {
         docker: "${docker}"
         cpu: length(bgenfiles)
-        memory: "3.75 GB"
+        memory: (3.75 * length(bgenfiles)) + " GB"
         disks: "local-disk " + (length(bgenfiles) * ceil(size(bgenfiles[0], "G")) + 1) + " HDD"
         zones: "europe-west1-b"
         preemptible: 0
