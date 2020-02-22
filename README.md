@@ -35,6 +35,25 @@ This in an example scenario creating new phenotypes in R4 and running those
 10. Logs and results go under  
 `gs://fg-cromwell/saige/WORKFLOW_ID`, plots `gs://fg-cromwell/saige/WORKFLOW_ID/call-test_combine/shard-*/**/*.png`, summary stats and tabix indexes `gs://fg-cromwell/saige/WORKFLOW_ID/call-test_combine/shard-*/**/*.gz*`
 
+
+## Batch GWAS
+
+To run N bgens simultaneously on N-CPU machines instead of 1 bgen per
+1-CPU machine, use
+[wdl/gwas/saige_sub.multiproc.wdl](wdl/gwas/saige_sub.multiproc.wdl). The
+input bgenlistfile can then be a tab-separated file of bgen
+locations. A row in the file will correspond to one VM and it will
+have as many CPUs as there are columns on that row. Each bgen will be
+analyzed in parallel. Note that the disk size for each VM will be
+about (n_bgens * size of first bgen) so it's good to sort the bgens on
+each row by size so that there will be enough space. For R5 this was
+done:
+
+```
+gsutil ls -l gs://r5_data/bgen/chunks/*.bgen | sed \$d | awk 'OFS="\t" {print $1,$3}' | sort -k2,2V > bgen_size.txt
+for c in {15,30,60}; do split -l $c bgen_size.txt R5_bgen_chunk_${c}_; for file in R5_bgen_chunk_${c}_*; do sort -k1,1gr $file | cut -f2 | tr '\n' '\t'; echo; done > R5_bgen_chunks_$c.txt; done
+```
+
 ## Conditional analysis for genomewide significant regions.
 
 wdl/saige_conditional_full.wdl and corresponding .json scan for genomewide significant regions and then performs conditional analysis on those regions, adding significant variants as covariate and iterating on that until no significant variants are left.
