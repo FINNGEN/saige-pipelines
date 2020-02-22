@@ -1,4 +1,4 @@
-import "saige_sub.wdl" as sub
+import "saige_sub.multiproc.wdl" as sub
 
 workflow saige_tests {
 
