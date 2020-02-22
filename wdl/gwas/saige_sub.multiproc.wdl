@@ -15,6 +15,7 @@ task test {
         import os
         import shlex
         import subprocess
+        import time
         processes = set()
         cmd_prefix = 'step2_SPAtests.R \
             --minMAC=${minmac} \
@@ -29,9 +30,16 @@ task test {
             cmd = cmd + ' --SAIGEOutputFile=${outfileprefix}' + os.path.basename(file) + '.SAIGE.txt'
             logfile = open('SAIGE_log_${outfileprefix}' + os.path.basename(file) + '.txt', 'w')
             processes.add(subprocess.Popen(shlex.split(cmd), stdout=logfile))
-        for p in processes:
-            if p.poll() is None:
-                p.wait()
+        n_rc0 = 0
+        while n_rc0 < len(processes):
+            time.sleep(60)
+            n_rc0 = 0
+            for p in processes:
+                p_poll = p.poll()
+                if p_poll is not None and p_poll > 0:
+                    raise('subprocess failed')
+                if p_poll == 0:
+                    n_rc0 = n_rc0 + 1
         EOF
     }
 
