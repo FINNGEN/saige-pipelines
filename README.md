@@ -51,7 +51,7 @@ done:
 
 ```
 gsutil ls -l gs://r5_data/bgen/chunks/*.bgen | sed \$d | awk 'OFS="\t" {print $1,$3}' | sort -k2,2V > bgen_size.txt
-for c in {15,30,60}; do split -l $c bgen_size.txt R5_bgen_chunk_${c}_; for file in R5_bgen_chunk_${c}_*; do sort -k1,1gr $file | cut -f2 | tr '\n' '\t'; echo; done > R5_bgen_chunks_$c.txt; done
+for c in {15,30,60}; do split -l $c bgen_size.txt R5_bgen_chunk_${c}_; for file in R5_bgen_chunk_${c}_*; do sort -k1,1gr $file | cut -f2 | sed \$d | tr '\n' '\t'; echo; done > R5_bgen_chunks_$c.txt; done
 ```
 
 ## Conditional analysis for genomewide significant regions.
