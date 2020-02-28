@@ -27,9 +27,9 @@ def run():
     header = [h.lower() for h in fh.readline().rstrip().split('\t')]
     hd = {h:i for i, h in enumerate(header)}
     if 'af.cases' in hd:
-        print('#chrom\tpos\tref\talt\tpval\tbeta\tsebeta\tmaf\tmaf_cases\tmaf_controls\tn_hom\tn_het')
+        print('#chrom\tpos\tref\talt\tpval\tbeta\tsebeta\tmaf\tmaf_cases\tmaf_controls\tn_hom_cases\tn_het_cases\tn_hom_controls\tn_het_controls')
     else:
-        print('#chrom\tpos\tref\talt\tpval\tbeta\tsebeta\tmaf\tn_hom\tn_het')
+        print('#chrom\tpos\tref\talt\tpval\tbeta\tsebeta\tmaf\tn_hom_cases\tn_het_cases\tn_hom_controls\tn_het_controls')
     for line in fh:
         split = line.rstrip().split('\t')
         try:
@@ -47,8 +47,10 @@ def run():
                         split[hd['af_allele2']],
                         split[hd['af.cases']],
                         split[hd['af.controls']],
-                        split[hd['homn_allele2']],
-                        split[hd['hetn_allele2']]]))
+                        split[hd['homn_allele2_cases']],
+                        split[hd['hetn_allele2_cases']],
+                        split[hd['homn_allele2_ctrls']],
+                        split[hd['hetn_allele2_ctrls']]]))
                 else:
                     print('\t'.join([
                         split[hd['chr']].replace('chr', ''),
@@ -59,8 +61,10 @@ def run():
                         split[hd['beta']],
                         split[hd['se']],
                         split[hd['af_allele2']],
-                        split[hd['homn_allele2']],
-                        split[hd['hetn_allele2']]]))
+                        split[hd['homn_allele2_cases']],
+                        split[hd['hetn_allele2_cases']],
+                        split[hd['homn_allele2_ctrls']],
+                        split[hd['hetn_allele2_ctrls']]]))
         except ValueError as e:
             # invalid chromosome
             pass
