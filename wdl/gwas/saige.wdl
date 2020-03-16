@@ -1,6 +1,7 @@
 import "saige_sub.wdl" as sub
 
 task null {
+
     String pheno
     File bedfile
     File bimfile = sub(bedfile, "\\.bed$", ".bim")
@@ -11,12 +12,11 @@ task null {
     String sampleID
     String traitType
     String docker
-    Int cpu
-    Int mem
     String loco
     Float traceCVcutoff
     Float ratioCVcutoff
     Int minCovariateCount
+    Int cpu = 32
 
     command {
 
@@ -49,7 +49,7 @@ task null {
 
         docker: "${docker}"
         cpu: "${cpu}"
-        memory: "${mem} GB"
+        memory: 7
         disks: "local-disk 20 HDD"
         zones: "europe-west1-b"
         preemptible: 2
@@ -59,11 +59,12 @@ task null {
 
 workflow saige {
 
-	String docker
+    String docker
     File phenolistfile
     String traitType
     Array[String] phenos = read_lines(phenolistfile)
     String loco
+    String analysisType
 
     scatter (pheno in phenos) {
 
@@ -72,7 +73,7 @@ workflow saige {
         }
 
         call sub.test_combine {
-            input: docker=docker, pheno=pheno, traitType=traitType, nullfile=null.modelfile, loco=loco
+            input: docker=docker, pheno=pheno, traitType=traitType, nullfile=null.modelfile, loco=loco, analysisType=analysisType
         }
     }
 }

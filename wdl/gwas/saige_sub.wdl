@@ -1,42 +1,62 @@
 task test {
 
-	File nullfile
-	File varianceratiofile = sub(nullfile, ".rda", ".varianceRatio.txt")
-	File bgenfile
-	File samplefile
-	Int minmac
-	String docker
-	Int cpu
-    Float mem
+    File nullfile
+    File varianceratiofile = sub(nullfile, ".rda", ".varianceRatio.txt")
+    String outfileprefix = basename(nullfile, ".rda") + "-"
+    Array[File] bgenfiles
+    File samplefile
+    Int minmac
+    String docker
     String loco
-	String outfile = basename(nullfile, ".rda") + "-" + basename(bgenfile) + ".SAIGE.txt"
+    String analysisType
 
     command {
 
-        step2_SPAtests.R \
-            --bgenFile=${bgenfile} \
+        python3 <<EOF
+        import os
+        import subprocess
+        import time
+        processes = set()
+        cmd_prefix = 'export MKL_NUM_THREADS=1; export MKL_DYNAMIC=false; export OMP_NUM_THREADS=1; export OMP_DYNAMIC=false; \
+            step2_SPAtests.R \
             --minMAC=${minmac} \
             --sampleFile=${samplefile} \
             --GMMATmodelFile=${nullfile} \
             --varianceRatioFile=${varianceratiofile} \
-            --SAIGEOutputFile=${outfile} \
             --numLinesOutput=1000 \
             --IsOutputAFinCaseCtrl=TRUE \
-            --LOCO=${loco}
-
+            --LOCO=${loco} \
+            --analysisType=${analysisType} '
+        for file in '${sep=" " bgenfiles}'.split(' '):
+            cmd = cmd_prefix + '--bgenFile=' + file
+            cmd = cmd + ' --SAIGEOutputFile=${outfileprefix}' + os.path.basename(file) + '.SAIGE.txt'
+            logfile = open('SAIGE_log_${outfileprefix}' + os.path.basename(file) + '.txt', 'w')
+            processes.add(subprocess.Popen(cmd, shell=True, stdout=logfile))
+        print(time.strftime("%Y/%m/%d %H:%M:%S") + ' ' + str(len(processes)) + ' processes started', flush=True)
+        n_rc0 = 0
+        while n_rc0 < len(processes):
+            time.sleep(60)
+            n_rc0 = 0
+            for p in processes:
+                p_poll = p.poll()
+                if p_poll is not None and p_poll > 0:
+                    raise('subprocess returned ' + str(p_poll))
+                if p_poll == 0:
+                    n_rc0 = n_rc0 + 1
+            print(time.strftime("%Y/%m/%d %H:%M:%S") + ' ' + str(n_rc0) + ' processes finished', flush=True)
+        EOF
     }
 
 	output {
-        File out = outfile
-
+        Array[File] out = glob("*.SAIGE.txt")
+        Array[File] logs = glob("SAIGE_log_*.txt")
     }
 
     runtime {
-
         docker: "${docker}"
-        cpu: "${cpu}"
-        memory: "${mem} GB"
-        disks: "local-disk 5 HDD"
+        cpu: length(bgenfiles)
+        memory: (4 * length(bgenfiles)) + " GB"
+        disks: "local-disk " + (length(bgenfiles) * ceil(size(bgenfiles[0], "G")) + 1) + " HDD"
         zones: "europe-west1-b"
         preemptible: 2
         noAddress: true
@@ -48,7 +68,8 @@ task combine {
 
     String pheno
     String traitType
-    Array[File] results
+    Array[Array[File]] results2D
+    Array[File] results = flatten(results2D)
     File blacklist
     Float info_threshold
     String chrcol
@@ -56,8 +77,6 @@ task combine {
     String bp_col
     Int loglog_pval
     String docker
-    Int cpu
-    Float mem
 
     command <<<
 
@@ -72,13 +91,13 @@ task combine {
 
         if [[ ${traitType} == "binary" ]]; then
             cat <(head -n 1 `basename ${results[0]}"DATAUNZIP"` | tr ' ' '\t') \
-            <(awk 'FNR>1 { printf "%s\t%d\t%s\t%s\t%s\t%s\t%.2f\t%.3e\t%.4f\t%d\t%.4f\t%.4f\t%.4f\t%.3e\t%.3e\t%d\t%.3e\t%.3e\t%.3e\t%.3e\n", \
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20 }' \
+            <(awk 'FNR>1 { printf "%s\t%d\t%s\t%s\t%s\t%s\t%.2f\t%.3e\t%.2f\t%.2f\t%.2f\t%.2f\t%.4f\t%d\t%.4f\t%.4f\t%.4f\t%.3e\t%.3e\t%d\t%.3e\t%.3e\t%.3e\t%.3e\n", \
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24 }' \
             `find *DATAUNZIP | sort -V | tr '\n' ' '`) | sort -k1,1V -k2,2g -s > ${pheno}
         else
             cat <(head -n 1 `basename ${results[0]}"DATAUNZIP"` | tr ' ' '\t') \
-            <(awk 'FNR>1 { printf "%s\t%d\t%s\t%s\t%s\t%s\t%.2f\t%.3e\t%.4f\t%d\t%.4f\t%.4f\t%.4f\t%.3e\t%.3e\t%d\t%.3e\t%.3e\n", \
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18 }' \
+            <(awk 'FNR>1 { printf "%s\t%d\t%s\t%s\t%s\t%s\t%.2f\t%.3e\t%.2f\t%.2f\t%.2f\t%.2f\t%.4f\t%d\t%.4f\t%.4f\t%.4f\t%.3e\t%.3e\t%d\t%.3e\t%.3e\n", \
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22 }' \
             `find *DATAUNZIP | sort -V | tr '\n' ' '`) | sort -k1,1V -k2,2g -s > ${pheno}
         fi
         postscript.py ${pheno} ${blacklist} ${info_threshold} > ${pheno}.pheweb && \
@@ -103,11 +122,11 @@ task combine {
 
     runtime {
         docker: "${docker}"
-        cpu: "${cpu}"
-        memory: "${mem} GB"
-        disks: "local-disk 10 HDD"
+        cpu: 1
+        memory: "10 GB"
+        disks: "local-disk 20 HDD"
         zones: "europe-west1-b"
-        preemptible: 2
+        preemptible: 1
         noAddress: true
     }
 }
@@ -119,16 +138,21 @@ workflow test_combine {
     String traitType
     String nullfile
     File bgenlistfile
-    Array[String] bgenfiles = read_lines(bgenlistfile)
+    Array[Array[String]] bgenfiles2D = read_tsv(bgenlistfile)
     String loco
+    String analysisType
 
-    scatter (bgenfile in bgenfiles) {
+    scatter (bgenfiles in bgenfiles2D) {
         call test {
-            input: docker=docker, nullfile=nullfile, bgenfile=bgenfile, loco=loco
+            input: docker=docker, nullfile=nullfile, bgenfiles=bgenfiles, loco=loco, analysisType=analysisType
         }
     }
 
     call combine {
-        input: pheno=pheno, traitType=traitType, results=test.out, docker=docker
+        input: pheno=pheno, traitType=traitType, results2D=test.out, docker=docker
+    }
+
+    output {
+        File out = combine.out
     }
 }
