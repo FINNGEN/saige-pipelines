@@ -38,6 +38,7 @@ if __name__ == '__main__':
     parser.add_argument('condition_snp', action='store', type=str, help='Result file')
 
     parser.add_argument('--out_prefix', action='store', default="", type=str, help='')
+    parser.add_argument('--max_rounds', action='store', default=10, type=int, help='Maximum number of conditioning rounds to perform')
     parser.add_argument('--p_threshold', action='store', default=5e-8, type=float, help='')
     parser.add_argument('--min_mac', action="store", default=10, type=int)
     parser.add_argument('--saige_script', action="store", default="step2_SPAtests.R")
@@ -66,7 +67,7 @@ if __name__ == '__main__':
         summary.write("\t".join(columns) + "\tConditioned_on" + "\n"  )
         cond_snp=res.loc[ res['SNPID']== args.condition_snp, columns]
         summary.write(f'{tab.join( str(v) for v in cond_snp.iloc[0].values)}\t{",".join(cond_snps)}\n')
-        while not r.empty:
+        while not r.empty and len(cond_snps)+1<=args.max_rounds:
             summary.write(f'{tab.join( str(v) for v in r.iloc[0].values)}\t{",".join(cond_snps)}\n')
             cond_snps.append(r.iloc[0].SNPID)
             out = f'{args.out_prefix + "_" if len(args.out_prefix) > 0 else ""}{os.path.basename(args.null_file)}_{args.condition_snp}_{len(cond_snps)}.conditional'

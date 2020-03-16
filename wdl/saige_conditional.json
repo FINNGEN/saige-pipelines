@@ -1,6 +1,6 @@
 {
   "conditional_analysis.disk": "100",
-  "conditional_analysis.loci_to_cond_conf": "gs://r4_data/conditional/missing_conf",
+  "conditional_analysis.loci_to_cond_conf": "gs://r4_data/conditional/r4_cond_missing_no_hla",
   "conditional_analysis.cpu": "1",
   "conditional_analysis.docker": "gcr.io/finngen-refinery-dev/saige:0.35.8.8_cond1.0.1",
   "conditional_analysis.mem": "16"

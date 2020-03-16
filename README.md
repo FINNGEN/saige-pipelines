@@ -42,5 +42,51 @@ wdl/saige_conditional_full.wdl and corresponding .json scan for genomewide signi
 
 If you want to run conditional analysis without scanning for gw-sig loci from results files, you can use saige_conditional.wdl/.json directly. It needs configuration file which can be greated using [scripts/generate_conditional_analysis_config.py](scripts/generate_conditional_analysis_config.py). See [scripts/generate_conditional_analysis_config_examples.sh](scripts/generate_conditional_analysis_config_examples.sh) for example commands.
 
+## Output files
+
+### PHENOTYPE.REGION.independent.snps files
+#### Summary of top snp conditional statistics after conditioning
+
+Columns:
+
+- SNPID   variant
+- BETA    original beta
+- SE      original se
+- p.value original se
+- BETA_cond       beta after conditioning
+- SE_cond se after conditioning
+- p.value_cond    p-value after conditioning
+- Conditioned_on variants used in conditioning 
+
+
+### PHENOTYPE.REGION_n files
+#### Summary statistics of all snps in the region after conditioning on n snps.
+#### The condition snp corresponds to the line in .independent.snps file
+
+Columns:
+- CHR 
+- POS 
+- rsid 
+- SNPID 
+- Allele1 
+- Allele2 
+- AC_Allele2 
+- AF_Allele2 
+- imputationInfo 
+- N 
+- BETA 
+- SE 
+- Tstat 
+- p.value  original p-value using SPA estimator (you want this p-value)
+- p.value.NA  original p-value using normal approximation (don’t use!)
+- Is.SPA.converge  did the model converge
+- varT original t statistic
+- varTstat  original variance of t-statistic
+- Tstat_cond  t-statistic after conditioning
+- p.value_cond  p-value after conditioning
+- varT_cond  t statistic variance after conditioning
+- BETA_cond  beta after conditioning
+- SE_cond standard error after conditioning
+
 
 
