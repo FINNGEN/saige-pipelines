@@ -17,8 +17,8 @@ This in an example scenario creating new phenotypes in R5 and running those
 4. Cromwell requires subworkflows be zipped: `cd saige-pipelines/wdl/gwas/ && zip saige_sub saige_sub.wdl`
 5. Change `saige.null.phenofile` in `saige.json` to the file from step 1
 6. Change `saige.phenolistfile` in `saige.json` to the file from step 2  
-6.1. Use `"saige.traitType": "binary"` or `"saige.traitType": "quantitative"` depending on whether your traits are case/control or continuous
-6.2. Use `"saige.analysisType": "additive"` or `"saige.analysisType": "recessive"` or `"saige.analysisType": "dominant"` - additive being regular GWAS
+    6.1. Use `"saige.traitType": "binary"` or `"saige.traitType": "quantitative"` depending on whether your traits are case/control or continuous  
+    6.2. Use `"saige.analysisType": "additive"` or `"saige.analysisType": "recessive"` or `"saige.analysisType": "dominant"` - additive being regular GWAS
 7. Connect to Cromwell server  
     `gcloud compute ssh cromwell-fg-1 --project finngen-refinery-dev --zone europe-west1-b -- -fN -L localhost:5000:localhost:80`
 8. Submit workflow  
