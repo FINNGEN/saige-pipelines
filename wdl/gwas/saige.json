@@ -1,5 +1,5 @@
 {
-    "saige.docker": "gcr.io/finngen-refinery-dev/saige:0.36.3.2.fg",
+    "saige.docker": "gcr.io/finngen-refinery-dev/saige:0.36.3.2.fg.q",
     "saige.phenolistfile": "gs://path/to/PHENO-LIST.txt",
     "saige.traitType": "binary",
     "saige.loco": "FALSE",
