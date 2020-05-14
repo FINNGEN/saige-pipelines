@@ -17,7 +17,7 @@ task null {
     Float ratioCVcutoff
     Int minCovariateCount
     Int cpu = 32
-    Boolean invNormalize=false
+    Boolean invNormalize
 
     command {
 
