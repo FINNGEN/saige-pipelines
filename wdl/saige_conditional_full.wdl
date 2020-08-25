@@ -49,7 +49,7 @@ task generate_conditional_analysis_config {
     Boolean add_chr
     String excludes=""
 
-    String excl_switch =  if excludes!="" then "--exclude_regions " + excludes else ""
+    String excl_switch =  if excludes!="" then "--exclude_regions \"" + excludes + "\"" else ""
 
     command <<<
         cat <( head -n 1 ${sig_vars[0]}) <( tail -q -n+2 ${sep=' ' sig_vars} ) > all_vars
