@@ -69,19 +69,6 @@ def from_variants(args):
 
     merged = []
 
-
-vars = pd.DataFrame({'chr':[1,2,3,4], 'start':[20, 21, 19, 18]})
-ranges = pd.DataFrame({'chr':[1,2,3,4], 'start':[20, 10000, 19, 18], 'stop':[100,12312313,1312312,1112 ],'file':["f1","f2","f3","f4"] })
-
-vars['susiefile'] =  [ m.iloc[0] if len(m)>0 else "NA" for m in  [ ranges[ (ranges.chr==v.chr) & (ranges.start<=v.start) & (ranges.stop>=v.start) ]['file']  for v in vars.itertuples()  ]]
-
-
-
-for row in vars.iteritems:
-    match = ranges[(ranges.chr==row["chr"]) & (ranges.start<=row["start"]) & ranges.stop>=row["start"] ]
-    if(match.shape[0]>0):
-        row['susiematch']=match[0,"susie"]
-
     def get_cols(s):
         return pd.Series({"pheno": s.PHENO, "chr": s[args.chr_col],
                    "start": max(s[args.pos_col] - loc_width,1), "stop": s[args.pos_col] + loc_width,
