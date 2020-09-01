@@ -1,5 +1,5 @@
 task null {
-    
+
     String pheno
     File bedfile
     File bimfile = sub(bedfile, "\\.bed$", ".bim")
@@ -16,6 +16,7 @@ task null {
     Float traceCVcutoff
     Float ratioCVcutoff
     Int minCovariateCount
+    Boolean invNormalize=false
 
     command {
 
@@ -31,7 +32,8 @@ task null {
             --LOCO=${loco} \
             --traceCVcutoff ${traceCVcutoff} \
             --ratioCVcutoff ${ratioCVcutoff} \
-            --minCovariateCount ${minCovariateCount}
+            --minCovariateCount ${minCovariateCount} \
+            ${true='--invNormalize=TRUE' false=' ' invNormalize}
     }
 
     output {
