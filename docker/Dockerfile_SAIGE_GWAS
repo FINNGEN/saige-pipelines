@@ -27,11 +27,15 @@ RUN apt-get install python3-pip --yes && \
     pip3 install cget && \
     apt-get remove default-jre --yes && apt autoremove --yes && apt-get clean
 
+RUN apt install libxml2-dev
+
 ADD SAIGE/extdata/install_packages.R /usr/local/bin/
-RUN install_packages.R
+RUN chmod a+x /usr/local/bin/install_packages.R && install_packages.R
 
 ADD SAIGE /SAIGE
+
 RUN R CMD INSTALL SAIGE && \
     rm -rf SAIGE
 
 ADD SAIGE/extdata/step1_fitNULLGLMM.R SAIGE/extdata/step2_SPAtests.R scripts/qqplot.R scripts/postscript.py /usr/local/bin/
+RUN chmod a+x /usr/local/bin/step1_fitNULLGLMM.R /usr/local/bin/step2_SPAtests.R /usr/local/bin/qqplot.R /usr/local/bin/postscript.py
