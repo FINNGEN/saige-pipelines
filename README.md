@@ -3,9 +3,9 @@
 ## Running GWAS
 
 How to run SAIGE GWAS with Cromwell  
-This in an example scenario creating new phenotypes in R5 and running those
+This in an example scenario creating new phenotypes in R6 and running those
 
-1. Create a covariate/phenotype file that contains your phenotypes. E.g. get `gs://r5_data/pheno/R5_COV_PHENO_V1.txt.gz`, add phenotypes to that (cases 1, controls 0, everyone else NA), and upload the new file to a bucket
+1. Create a covariate/phenotype file that contains your phenotypes. E.g. get `gs://r6_data/pheno/R6_COV_PHENO_V1.txt.gz`, add phenotypes to that (cases 1, controls 0, everyone else NA), and upload the new file to a bucket
 2. Create a text file with your new phenotypes one per line, e.g.  
     my_phenos.txt
     ```
@@ -18,7 +18,7 @@ This in an example scenario creating new phenotypes in R5 and running those
 5. Change `saige.null.phenofile` in `saige.json` to the file from step 1
 6. Change `saige.phenolistfile` in `saige.json` to the file from step 2  
 6.1. Use `"saige.traitType": "binary"` or `"saige.traitType": "quantitative"` depending on whether your traits are case/control or continuous
-6.2. Use `"saige.analysisType": "additive"` or `"saige.analysisType": "recessive"` or `"saige.analysisType": "dominant"` - additive being regular GWAS
+6.2. Use `"saige.analysisType": "additive"` or `"saige.analysisType": "recessive"`, `"saige.analysisType": "dominant"` or `"saige.analysisType": "het"` - additive being regular GWAS
 7. Connect to Cromwell server  
     `gcloud compute ssh cromwell-fg-1 --project finngen-refinery-dev --zone europe-west1-b -- -fN -L localhost:5000:localhost:80`
 8. Submit workflow  

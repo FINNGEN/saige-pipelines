@@ -1,5 +1,5 @@
 task null {
-    
+
     String pheno
     File bedfile
     File bimfile = sub(bedfile, "\\.bed$", ".bim")
@@ -10,14 +10,16 @@ task null {
     String sampleID
     String traitType
     String docker
-    Int cpu
-    Int mem
     String loco
     Float traceCVcutoff
     Float ratioCVcutoff
     Int minCovariateCount
+    Int cpu = 32
 
     command {
+
+        # continuous traits don't have this file and optional outputs are not currently supported
+        echo "placeholder" > ${prefix}"_30markers.SAIGE.results.txt"
 
         step1_fitNULLGLMM.R \
             --plinkFile=${sub(bedfile, "\\.bed$", "")} \
@@ -45,7 +47,7 @@ task null {
 
         docker: "${docker}"
         cpu: "${cpu}"
-        memory: "${mem} GB"
+        memory: "7 GB"
         disks: "local-disk 20 HDD"
         zones: "europe-west1-b"
         preemptible: 2
@@ -55,15 +57,16 @@ task null {
 
 workflow saige_null {
 
-	String docker
+    String docker
     File phenolistfile
+    String traitType
     Array[String] phenos = read_lines(phenolistfile)
     String loco
 
     scatter (pheno in phenos) {
 
         call null {
-            input: docker=docker, pheno=pheno, loco=loco
+            input: docker=docker, pheno=pheno, traitType=traitType, loco=loco
         }
     }
 }

@@ -9,6 +9,8 @@ task test {
     String docker
     String loco
     String analysisType
+    Boolean logP
+    String logPStr = if logP then "TRUE" else "FALSE"
 
     command {
 
@@ -26,6 +28,7 @@ task test {
             --numLinesOutput=1000 \
             --IsOutputAFinCaseCtrl=TRUE \
             --LOCO=${loco} \
+            --IsOutputlogPforSingle=${logP} \
             --analysisType=${analysisType} '
         for file in '${sep=" " bgenfiles}'.split(' '):
             cmd = cmd_prefix + '--bgenFile=' + file
@@ -40,7 +43,7 @@ task test {
             for p in processes:
                 p_poll = p.poll()
                 if p_poll is not None and p_poll > 0:
-                    raise('subprocess returned ' + str(p_poll))
+                    raise Exception('subprocess returned ' + str(p_poll))
                 if p_poll == 0:
                     n_rc0 = n_rc0 + 1
             print(time.strftime("%Y/%m/%d %H:%M:%S") + ' ' + str(n_rc0) + ' processes finished', flush=True)
@@ -56,13 +59,12 @@ task test {
         docker: "${docker}"
         cpu: length(bgenfiles)
         memory: (4 * length(bgenfiles)) + " GB"
-        disks: "local-disk " + (length(bgenfiles) * ceil(size(bgenfiles[0], "G")) + 1) + " HDD"
+        disks: "local-disk " + (length(bgenfiles) * ceil(size(bgenfiles[0], "G")) + 5) + " HDD"
         zones: "europe-west1-b"
         preemptible: 2
         noAddress: true
     }
 }
-
 
 task combine {
 
@@ -70,63 +72,89 @@ task combine {
     String traitType
     Array[Array[File]] results2D
     Array[File] results = flatten(results2D)
-    File blacklist
-    Float info_threshold
     String chrcol
     String p_valcol
     String bp_col
     Int loglog_pval
     String docker
+    String prefix
+    Boolean logP
+    String logPStr = if logP then "True" else "False"
 
     command <<<
 
-        for file in ${sep=" " results}; do
-            if [[ $file == *.gz ]]
-            then
-                gunzip -c $file > $file"DATAUNZIP"
-            else
-                mv $file `basename $file`"DATAUNZIP"
-            fi
-        done
+        set -e
 
-        if [[ ${traitType} == "binary" ]]; then
-            cat <(head -n 1 `basename ${results[0]}"DATAUNZIP"` | tr ' ' '\t') \
-            <(awk 'FNR>1 { printf "%s\t%d\t%s\t%s\t%s\t%s\t%.2f\t%.3e\t%.2f\t%.2f\t%.2f\t%.2f\t%.4f\t%d\t%.4f\t%.4f\t%.4f\t%.3e\t%.3e\t%d\t%.3e\t%.3e\t%.3e\t%.3e\n", \
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24 }' \
-            `find *DATAUNZIP | sort -V | tr '\n' ' '`) | sort -k1,1V -k2,2g -s > ${pheno}
-        else
-            cat <(head -n 1 `basename ${results[0]}"DATAUNZIP"` | tr ' ' '\t') \
-            <(awk 'FNR>1 { printf "%s\t%d\t%s\t%s\t%s\t%s\t%.2f\t%.3e\t%.2f\t%.2f\t%.2f\t%.2f\t%.4f\t%d\t%.4f\t%.4f\t%.4f\t%.3e\t%.3e\t%d\t%.3e\t%.3e\n", \
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22 }' \
-            `find *DATAUNZIP | sort -V | tr '\n' ' '`) | sort -k1,1V -k2,2g -s > ${pheno}
-        fi
-        postscript.py ${pheno} ${blacklist} ${info_threshold} > ${pheno}.pheweb && \
-        qqplot.R --file ${pheno}.pheweb --bp_col "${bp_col}" --pval_col "${p_valcol}" --chrcol "${chrcol}" --loglog_pval ${loglog_pval} && \
-        bgzip ${pheno} && \
-        tabix -S 1 -b 2 -e 2 -s 1 ${pheno}.gz && \
-        bgzip ${pheno}.pheweb && \
-        tabix -S 1 -b 2 -e 2 -s 1 ${pheno}.pheweb.gz
+        echo "`date` concatenating results to ${prefix}${pheno}.saige.gz"
+        cat \
+        <(head -n 1 ${results[0]}) \
+        <(for file in ${sep=" " results}; do tail -n+2 $file; done) \
+        | bgzip > ${prefix}${pheno}.saige.gz
 
+        echo "`date` converting results to ${prefix}${pheno}.gz"
+        python3 <<EOF | sort -k 1,1g -k 2,2g | bgzip > ${prefix}${pheno}.gz
+        import math, gzip
+        from collections import OrderedDict
+        from functools import reduce
+
+        def conv_base(logp):
+            return logp / math.log(10)
+
+        def red(obj, func_list):
+            return "NA" if obj == "NA" else reduce(lambda o, func: func[0](o, *func[1]) if func[0] is not str.format else func[0](func[1], o), func_list, obj)
+
+        mapping = OrderedDict([
+            ("#chrom", ("CHR", [(str.replace, ("chr", "")), (str.replace, ("X", "23")), (str.replace, ("Y", "24")), (str.replace, ("MT", "25")), (str.replace, ("M", "25"))])),
+            ("pos", ("POS", [(float, ()), (int, ())])), # convert 1e6 to 1000000
+            ("ref", ("Allele1", [])),
+            ("alt", ("Allele2", [])),
+            ("pval", ("p.value", [(float, ()), (math.exp, ()), (str.format, ("{:.2e}"))])) if ${logPStr} else ("pval", ("p.value", [(float, ()), (str.format, ("{:.2e}"))])),
+            ("mlogp", ("p.value", [(float, ()), (abs, ()), (conv_base, ()), (str.format, ("{:.4f}"))])) if ${logPStr} else ("mlogp", ("p.value", [(float, ()), (math.log10, ()), (abs, ()), (str.format, ("{:.4f}"))])),
+            ("beta", ("BETA", [(float, ()), (str.format, ("{:.5f}"))])),
+            ("sebeta", ("SE", [(float, ()), (str.format, ("{:.5f}"))])),
+            ("af_alt", ("AF_Allele2", [(float, ()), (str.format, ("{:.2e}"))])),
+            ("af_alt_cases", ("AF.Cases", [(float, ()), (str.format, ("{:.2e}"))])),
+            ("af_alt_controls", ("AF.Controls", [(float, ()), (str.format, ("{:.2e}"))])),
+            ("n_hom_cases", ("homN_Allele2_cases", [(float, ()), (str.format, ("{:.2f}"))])),
+            ("n_het_cases", ("hetN_Allele2_cases", [(float, ()), (str.format, ("{:.2f}"))])),
+            ("n_hom_ref_cases", ("ref_homN_Allele2_cases", [(float, ()), (str.format, ("{:.2f}"))])),
+            ("n_hom_controls", ("homN_Allele2_ctrls", [(float, ()), (str.format, ("{:.2f}"))])),
+            ("n_het_controls", ("hetN_Allele2_ctrls", [(float, ()), (str.format, ("{:.2f}"))])),
+            ("n_hom_ref_controls", ("ref_homN_Allele2_ctrls", [(float, ()), (str.format, ("{:.2f}"))])),
+        ])
+
+        with gzip.open("${prefix}${pheno}.saige.gz", 'rt') as f:
+            header = {h:i for i,h in enumerate(f.readline().strip().split(' '))}
+            for col in [v[0] for v in mapping.values()]:
+                if col not in header.keys():
+                    raise Exception('column ' + col + ' not in given file')
+            print('\t'.join(mapping.keys()))
+            for line in f:
+                s = line.strip().split(' ')
+                print('\t'.join(str(red(s[header[v[0]]], v[1])) for v in mapping.values()))
+        EOF
+        echo "`date` plotting qq and manha"
+        qqplot.R --file ${prefix}${pheno}.gz --bp_col "${bp_col}" --pval_col "${p_valcol}" --chrcol "${chrcol}" --loglog_pval ${loglog_pval}
+        echo "`date` tabixing"
+        tabix -S 1 -b 2 -e 2 -s 1 ${prefix}${pheno}.gz
+        echo "`date` done"
     >>>
 
     output {
-        File out = pheno + ".gz"
-        File out_ind = pheno + ".gz.tbi"
-        File out_pheweb = pheno + ".pheweb.gz"
-        File out_pheweb_ind = pheno + ".pheweb.gz.tbi"
-        File qq = pheno + ".pheweb_" + p_valcol + "_qqplot.png"
-        File manh = pheno + ".pheweb_" + p_valcol + "_manhattan.png"
-        File manh_loglog = pheno + ".pheweb_" + p_valcol + "_manhattan_loglog.png"
-        File quantiles = pheno + ".pheweb_" + p_valcol + "_qquantiles.txt"
+        File saige_out = prefix + pheno + ".saige.gz"
+        File out = prefix + pheno + ".gz"
+        File out_ind = prefix + pheno + ".gz.tbi"
+        Array[File] pngs = glob("*.png")
+        Array[File] quantiles = glob("*qquantiles.txt")
     }
 
     runtime {
         docker: "${docker}"
         cpu: 1
         memory: "10 GB"
-        disks: "local-disk 20 HDD"
+        disks: "local-disk 200 HDD"
         zones: "europe-west1-b"
-        preemptible: 1
+        preemptible: 2
         noAddress: true
     }
 }

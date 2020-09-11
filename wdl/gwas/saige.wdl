@@ -49,7 +49,7 @@ task null {
 
         docker: "${docker}"
         cpu: "${cpu}"
-        memory: 7
+        memory: "7 GB"
         disks: "local-disk 20 HDD"
         zones: "europe-west1-b"
         preemptible: 2
