@@ -17,8 +17,8 @@ This in an example scenario creating new phenotypes in R6 and running those
 4. Cromwell requires subworkflows be zipped: `cd saige-pipelines/wdl/gwas/ && zip saige_sub saige_sub.wdl`
 5. Change `saige.null.phenofile` in `saige.json` to the file from step 1
 6. Change `saige.phenolistfile` in `saige.json` to the file from step 2  
-6.1. Use `"saige.traitType": "binary"` or `"saige.traitType": "quantitative"` depending on whether your traits are case/control or continuous
-6.2. Use `"saige.analysisType": "additive"` or `"saige.analysisType": "recessive"`, `"saige.analysisType": "dominant"` or `"saige.analysisType": "het"` - additive being regular GWAS
+    6.1. Use `"saige.traitType": "binary"` or `"saige.traitType": "quantitative"` depending on whether your traits are case/control or continuous
+    6.2. Use `"saige.analysisType": "additive"` or `"saige.analysisType": "recessive"`, `"saige.analysisType": "dominant"` or `"saige.analysisType": "het"` - additive being regular GWAS
 7. Connect to Cromwell server  
     `gcloud compute ssh cromwell-fg-1 --project finngen-refinery-dev --zone europe-west1-b -- -fN -L localhost:5000:localhost:80`
 8. Submit workflow  
@@ -35,6 +35,15 @@ This in an example scenario creating new phenotypes in R6 and running those
 `http://0.0.0.0:5000/api/workflows/v1/WORKFLOW_ID/metadata`
 10. Logs and results go under  
 `gs://fg-cromwell/saige/WORKFLOW_ID`, plots `gs://fg-cromwell/saige/WORKFLOW_ID/call-test_combine/shard-*/**/*.png`, summary stats and tabix indexes `gs://fg-cromwell/saige/WORKFLOW_ID/call-test_combine/shard-*/**/*.gz*`
+
+## Docker file creation for R5 GWAS
+
+```
+git clone https://github.com/FINNGEN/saige-pipelines
+cd saige-pipelines
+git clone https://github.com/weizhouUMICH/SAIGE -b finngen_r5_jk
+docker build -t gcr.io/finngen-refinery-dev/saige:0.36.3.2 -f docker/Dockerfile_SAIGE_GWAS .
+```
 
 ## Conditional analysis for genomewide significant regions.
 

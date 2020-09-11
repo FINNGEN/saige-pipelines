@@ -15,6 +15,7 @@ task null {
     Float ratioCVcutoff
     Int minCovariateCount
     Int cpu = 32
+    Boolean invNormalize=false
 
     command {
 
@@ -33,7 +34,8 @@ task null {
             --LOCO=${loco} \
             --traceCVcutoff ${traceCVcutoff} \
             --ratioCVcutoff ${ratioCVcutoff} \
-            --minCovariateCount ${minCovariateCount}
+            --minCovariateCount ${minCovariateCount} \
+            ${true='--invNormalize=TRUE' false=' ' invNormalize}
     }
 
     output {
