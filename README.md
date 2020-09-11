@@ -41,8 +41,8 @@ This in an example scenario creating new phenotypes in R6 and running those
 ```
 git clone https://github.com/FINNGEN/saige-pipelines
 cd saige-pipelines
-git clone https://github.com/weizhouUMICH/SAIGE -b finngen_r5_jk
-docker build -t gcr.io/finngen-refinery-dev/saige:0.36.3.2 -f docker/Dockerfile_SAIGE_GWAS .
+git clone https://github.com/weizhouUMICH/SAIGE -b finngen_r6_jk
+docker build -t gcr.io/finngen-refinery-dev/saige:0.39.1-TAG -f docker/Dockerfile_SAIGE_GWAS .
 ```
 
 ## Conditional analysis for genomewide significant regions.
