@@ -23,6 +23,10 @@ option_list = list(
               help="bp column [default= %default]", metavar="character"),
   make_option(c("-l","--loglog_pval"), type="integer", default=10,
               help="-log10 p-val threshold for using log-log scale in manhattan plot [default= %default]", metavar="integer"),
+  make_option(c("-y","--loglog_ylim"), type="integer", default=324,
+              help="-log10 p-val limit for y-axis of log-log manhattan [default= %default]", metavar="integer"),
+  make_option(c("--mlog10p"), type="logical", default=FALSE,
+              help="whether the p-values are -log10 or not [default= %default]", metavar="logical"),
   make_option(c("-m","--minrep_col"), type="character",
               help="if given then chr:bp:ref:alt identifier assumed and chr and bp are read from there [default= %default]", metavar="character")
 );
@@ -83,9 +87,13 @@ quants <- c(0.7,0.5,0.1,0.01, 0.001)
 
 for( pcol in pcols) {
   subdata <- data[ !is.na(data[[pcol]]) & is.numeric( data[[pcol]]  ) ]
+  if (opt$options$mlog10p) {
+     data[[pcol]] <- ifelse(10^-data[[pcol]] < 5e-324, 5e-324, 10^-data[[pcol]])
+  }
   lambda  <- round(  quantile(  (qchisq(1-subdata[[pcol]], 1) ), probs=quants ) / qchisq(quants,1), 3)
   png( paste(output_prefix,"_", pcol ,"_qqplot.png", sep="" ))
-  qq(subdata[[pcol]], main=paste("\nlambda ", quants, ": ", lambda, sep="" ) )
+  qq(subdata[[pcol]])
+  title(c(file, paste("\n", "\nlambda ", quants, ": ", lambda, sep="" )), line=-0.2)
   dev.off()
 
   sink( paste(output_prefix,"_",  pcol ,"_qquantiles.txt", sep="" ) )
@@ -99,18 +107,24 @@ for( pcol in pcols) {
   print( summary(subdata[[pcol]] ))
   png( paste(output_prefix,"_",pcol,"_manhattan.png", sep=""), width=1000, height=400)
   logs <- -log10(subdata[[pcol]])
-  manhattan( data.table(subdata[,c(bp_col,pcol,chr_col), with=F]) , chr=chr_col, bp=bp_col, p=pcol, ylim=c( 2,max(logs)+1)  )
+  manhattan( data.table(subdata[,c(bp_col,pcol,chr_col), with=F]) , chr=chr_col, bp=bp_col, p=pcol, ylim=c( 2,max(logs)+1), main=file)
   dev.off()
 
 
   print("plotting log-log manhattan")
   loglog_p <- opt$options$loglog_pval
   logs <- ifelse(logs < loglog_p, logs, loglog_p * log10(logs) / log10(loglog_p))
+  loglog_ylim <- opt$options$loglog_ylim
+  if (loglog_ylim==0) {
+    max_loglog <- max(logs)
+  } else {
+    max_loglog <- loglog_p * log10(loglog_ylim) / log10(loglog_p)
+  }
   subdata[["p_scaled"]] <- 10^(-logs)
-  tick_pos <- round(seq(1, max(logs), length.out=round(max(logs))))
+  tick_pos <- round(seq(1, max_loglog, length.out=max_loglog))
   tick_lab <- sapply(tick_pos, function(pos) { round(ifelse(pos < loglog_p, pos, loglog_p^(pos/loglog_p))) })
   png( paste(output_prefix,"_",pcol,"_manhattan_loglog.png", sep=""), width=1000, height=400)
-  manhattan( data.table(subdata[,c(bp_col,"p_scaled",chr_col), with=F]) , chr=chr_col, bp=bp_col, p="p_scaled", ylim=c( 2,max(logs)+1), yaxt="n")
+  manhattan( data.table(subdata[,c(bp_col,"p_scaled",chr_col), with=F]) , chr=chr_col, bp=bp_col, p="p_scaled", ylim=c( 2,max_loglog), yaxt="n", main=file)
   axis(2, at = tick_pos, labels=tick_lab, las=2)
   dev.off()
 }
