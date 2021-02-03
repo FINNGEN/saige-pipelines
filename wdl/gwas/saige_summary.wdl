@@ -2,15 +2,23 @@ task summary{
     File input_file
     File finngen_annotation
     File gnomad_annotation
-    File finngen_tbi = finngen_anno + ".tbi"
-    File gnomad_tbi = gnomad_anno + ".tbi"
+    File finngen_tbi = finngen_annotation + ".tbi"
+    File gnomad_tbi = gnomad_annotation + ".tbi"
     
     Float pval_thresh
-    String output_name
+    String pheno
+    String output_name=pheno+"_summary"
     String docker
 
     command <<<
         python3 <<EOF
+            #read file
+            fname = "${input_file}"
+            finngen_annotation_file = "${finngen_annotation}"
+            gnomad_annotation_file  = "${gnomad_annotation}"
+            sig_threshold = ${pval_thresh}
+            output_name = "${output_name}"
+                        
             import pysam
             import gzip
             from typing import NamedTuple
@@ -20,8 +28,8 @@ task summary{
                 consequence: str
 
             class GnomadAnnotation(NamedTuple):
-                finaf: float
-                nfeaf: float
+                finaf: str
+                nfeaf: str
                 rsid: str
 
             def get_header(reader,file):
@@ -39,17 +47,12 @@ task summary{
             def get_gnomad_annotation(iterator,cpra,finaf_idx, nfeaf_idx, rsid_idx) -> GnomadAnnotation:
                 for v in iterator:
                     cols = v.strip("\n").split("\t")
-                    if (cols[0] == cpra[0]) and (cols[1] == str(cpra[1])) and (cols[3] == cpra[2]) and (cols[4] == cpra[3]):
-                        cols = v.strip("\n").split("\t")
-                        return GnomadAnnotation(float(cols[finaf_idx]),float(cols[nfeaf_idx]),cols[rsid_idx])
-                return GnomadAnnotation(0.,0.,"")
 
-            #read file
-            fname = "${input_file}"
-            finngen_annotation_file = "${finngen_annotation}"
-            gnomad_annotation_file  = "${gnomad_annotation}"
-            sig_threshold = ${pval_thresh}
-            output_name = "${output_name}"
+                    if (cols[3] == "chr"+cpra[0]) and (cols[4] == str(cpra[1])) and (cols[5] == cpra[2]) and (cols[6] == cpra[3]):
+                        return GnomadAnnotation(cols[finaf_idx],cols[nfeaf_idx],cols[rsid_idx])
+                return GnomadAnnotation(".",".",".")
+
+
             #open finngen annotation tabix
             fg_tabix = pysam.TabixFile(finngen_annotation_file,parser=None)
             #get fg header column positions
@@ -58,7 +61,7 @@ task summary{
             #open gnomad annotation tabix
             gnomad_tabix = pysam.TabixFile(gnomad_annotation_file,parser=None)
             gd_header = get_header(gzip.open, gnomad_annotation_file)
-            finaf_idx, nfeaf_idx, rsid_idx = (gd_header.index("AF_fin"),gd_header.index("AF_nfe"),gd_header.index("ID"))
+            finaf_idx, nfeaf_idx, rsid_idx = (gd_header.index("fin.AF"),gd_header.index("nfsee.AF"),gd_header.index("rsid"))
 
 
 
@@ -70,8 +73,8 @@ task summary{
                     #find p-value index
                     pval_idx = header.index("pval")
 
-                    #add gene name, consequence, gnomad finnish af, nfsee af, rsid?
-                    header.extend(["AF_fin","AF_nfe","rsid","gene_most_severe","most_severe"])
+                    #add gene name, consequence, gnomad finnish af, nfsee af, rsid
+                    header.extend(["fin.AF","nfsee.AF","rsid","gene_most_severe","most_severe"])
                     outfile.write("\t".join(header)+"\n")
                     #read lines
                     for line in file:
@@ -79,18 +82,18 @@ task summary{
                         pvalue = float(line_columns[pval_idx])
                         if pvalue < sig_threshold:
                             cpra= (line_columns[0],int(line_columns[1]),line_columns[2],line_columns[3])
-                            variant = f"{cpra[0]}:{cpra[1]}:{cpra[2]}:{cpra[3]}"
+                            variant = "{}:{}:{}:{}".format(cpra[0],cpra[1],cpra[2],cpra[3])
                             #annotate
                             fg_iter = fg_tabix.fetch(cpra[0],cpra[1]-1, cpra[1])
                             fg_a = get_fg_annotation(fg_iter,variant, gene_idx,cons_idx)
 
                             #annotate
-                            gnomad_iter = gnomad_tabix.fetch(cpra[0].replace("23","X"),cpra[1]-1, cpra[1])
+                            gnomad_iter = gnomad_tabix.fetch("chr"+cpra[0].replace("23","X"),cpra[1]-1, cpra[1])
                             gd_a = get_gnomad_annotation(gnomad_iter,cpra,finaf_idx, nfeaf_idx, rsid_idx)
 
                             line_columns.extend([
-                                f"{gd_a.finaf:.3f}",
-                                f"{gd_a.finaf:.3f}",
+                                gd_a.finaf,
+                                gd_a.finaf,
                                 gd_a.rsid,
                                 fg_a.gene,
                                 fg_a.consequence,
@@ -105,7 +108,7 @@ task summary{
     >>>
 
     output {
-        out = "${output_name}.gz"
+        File out = output_name+".gz"
     }
 
     runtime {
@@ -113,6 +116,7 @@ task summary{
         cpus: 4
         memory: "8 GB"
         storage: "local-disk 50 GB"
-        preemptible: true
+        zones: "europe-west1-b"
+        preemptible: 2
     }
 }

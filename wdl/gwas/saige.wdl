@@ -1,4 +1,5 @@
 import "saige_sub.wdl" as sub
+import "saige_summary.wdl" as summary
 
 task null {
 
@@ -76,6 +77,12 @@ workflow saige {
 
         call sub.test_combine {
             input: docker=docker, pheno=pheno, traitType=traitType, nullfile=null.modelfile, loco=loco, analysisType=analysisType
+        }
+
+        call summary.summary{
+            input: 
+                pheno=pheno,
+                input_file=test_combine.out
         }
     }
 }
