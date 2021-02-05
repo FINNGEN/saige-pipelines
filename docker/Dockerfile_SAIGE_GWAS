@@ -24,7 +24,7 @@ RUN apt-get update && \
 ADD SAIGE/thirdParty /SAIGE/thirdParty
 
 RUN apt-get install python3-pip --yes && \
-    pip3 install cget && \
+    pip3 install cget pysam && \
     apt-get remove default-jre --yes && apt autoremove --yes && apt-get clean
 
 RUN apt install libxml2-dev
