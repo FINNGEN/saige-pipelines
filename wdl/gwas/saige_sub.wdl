@@ -186,6 +186,11 @@ workflow test_combine {
     }
 
     output {
+        File saige_out = combine.saige_out
+        File saige_out_ind = combine.saige_out_ind
         File out = combine.out
+        File out_ind = combine.out_ind
+        Array[File] pngs = combine.pngs
+        Array[File] quantiles = combine.quantiles
     }
 }

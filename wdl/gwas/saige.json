@@ -1,6 +1,6 @@
 {
     "saige.docker": "gcr.io/finngen-refinery-dev/saige:0.39.1-fg",
-    "saige.phenolistfile": "gs://misc-analysis/saige_summary_test/test_phenolist",
+    "saige.phenolistfile": "gs://path/to/PHENO-LIST.txt",
     "saige.traitType": "binary",
     "saige.loco": "FALSE",
     "saige.analysisType": "additive",
