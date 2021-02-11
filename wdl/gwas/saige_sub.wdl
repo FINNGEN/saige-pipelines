@@ -13,7 +13,7 @@ task test {
     String logPStr = if logP then "TRUE" else "FALSE"
 
     command {
-
+        set -euxo pipefail
         python3 <<EOF
         import os
         import subprocess
@@ -82,15 +82,14 @@ task combine {
     String logPStr = if logP then "True" else "False"
 
     command <<<
-
-        set -e
+        set -euxo pipefail
 
         echo "`date` concatenating results to ${prefix}${pheno}.saige.gz"
         cat \
         <(head -n 1 ${results[0]}) \
         <(for file in ${sep=" " results}; do tail -n+2 $file; done) \
         |awk 'NR == 1; NR > 1 {print $0 | "sort -k 1,1V -k 2,2g"}' \
-        |awk '{$2=="POS" ? $2="POS":$2=sprintf("%d",$2); print $0}' \
+        |awk 'NR==1 { for(i=1;i<=NF;i++) { h[$i]=i }; if (! "POS" in h) { print "ERROR: POS not in saige file header"; exit 1};print } NR>1{ $h["POS"]=sprintf("%d",$h["POS"]);print $0 }' \
         |tr ' ' '\t' \
         |bgzip > ${prefix}${pheno}.saige.gz
         tabix -s1 -b2 -e2 -S1 ${prefix}${pheno}.saige.gz
