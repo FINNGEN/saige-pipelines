@@ -92,7 +92,7 @@ task combine {
         | bgzip > ${prefix}${pheno}.saige.gz
 
         echo "`date` converting results to ${prefix}${pheno}.gz"
-        python3 <<EOF | sort -k 1,1g -k 2,2g | bgzip > ${prefix}${pheno}.gz
+        python3 <<EOF | grep -Ev "v1_alt|_random" | sort -k 1,1g -k 2,2g | bgzip > ${prefix}${pheno}.gz
         import math, gzip
         from collections import OrderedDict
         from functools import reduce
