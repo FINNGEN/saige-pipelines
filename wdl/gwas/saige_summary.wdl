@@ -115,7 +115,7 @@ task summary{
 
                         line_columns.extend([
                             gd_a.finaf,
-                            gd_a.finaf,
+                            gd_a.nfeaf,
                             gd_a.rsid,
                             fg_a.gene,
                             fg_a.consequence,
