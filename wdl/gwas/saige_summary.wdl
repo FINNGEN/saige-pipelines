@@ -18,9 +18,9 @@ task summary{
         finngen_annotation_file = "${finngen_annotation}"
         gnomad_annotation_file  = "${gnomad_annotation}"
         sig_threshold = ${pval_thresh}
-        
+
         output_name = "${output_name}"
-                    
+
         import pysam
         import gzip
         from typing import NamedTuple
@@ -50,7 +50,7 @@ task summary{
 
         #required columns
         fg_req_cols=["#variant","gene_most_severe","most_severe"]
-        gd_req_cols=["fin.AF","nfsee.AF","rsid"]
+        gd_req_cols=["fin.AF","nfsee.AF","enrichment_nfsee","rsid"]
         #open finngen annotation tabix
         fg_tabix = pysam.TabixFile(finngen_annotation_file,parser=None)
         #get fg header column positions
