@@ -17,8 +17,8 @@ This in an example scenario creating new phenotypes in R7 and running those
 4. Cromwell requires subworkflows be zipped: `cd saige-pipelines/wdl/gwas/ && zip saige_sub saige_sub.wdl saige_summary.wdl`
 5. Change `saige.null.phenofile` in `saige.json` to the file from step 1
 6. Change `saige.phenolistfile` in `saige.json` to the file from step 2  
-    6.1. Use `"saige.traitType": "binary"` or `"saige.traitType": "quantitative"` depending on whether your traits are case/control or continuous
-    6.2. Use `"saige.analysisType": "additive"` or `"saige.analysisType": "recessive"`, `"saige.analysisType": "dominant"` or `"saige.analysisType": "het"` - additive being regular GWAS
+    6.1. Use `"saige.traitType": "binary"` or `"saige.traitType": "quantitative"` depending on whether your traits are case/control or continuous  
+    6.2. Use `"saige.analysisType": "additive"` or `"saige.analysisType": "recessive"`, `"saige.analysisType": "dominant"` or `"saige.analysisType": "het"` - additive being regular GWAS. 
 7. Connect to Cromwell server  
     `gcloud compute ssh cromwell-fg-1 --project finngen-refinery-dev --zone europe-west1-b -- -fN -L localhost:5000:localhost:80`
 8. Submit workflow  
@@ -29,7 +29,7 @@ This in an example scenario creating new phenotypes in R7 and running those
         8.1.4 Choose the edited `wdl/gwas/saige.json` as workflowInputs  
         8.1.5 Choose `wdl/gwas/saige_sub.zip` as workflowDependencies  
         8.1.6 `Execute`  
-    8.2. Or with `https://github.com/FINNGEN/CromwellInteract`    
+    8.2. Or with `https://github.com/FINNGEN/CromwellInteract`
 9. Use the given workflow id to look at timing diagram or to get metadata  
 `http://0.0.0.0:5000/api/workflows/v1/WORKFLOW_ID/timing`
 `http://0.0.0.0:5000/api/workflows/v1/WORKFLOW_ID/metadata`
