@@ -13,7 +13,7 @@ task test {
     String logPStr = if logP then "TRUE" else "FALSE"
 
     command {
-
+        set -euxo pipefail
         python3 <<EOF
         import os
         import subprocess
@@ -82,14 +82,17 @@ task combine {
     String logPStr = if logP then "True" else "False"
 
     command <<<
-
-        set -e
+        set -euxo pipefail
 
         echo "`date` concatenating results to ${prefix}${pheno}.saige.gz"
         cat \
         <(head -n 1 ${results[0]}) \
         <(for file in ${sep=" " results}; do tail -n+2 $file; done) \
-        | bgzip > ${prefix}${pheno}.saige.gz
+        |awk 'NR == 1; NR > 1 {print $0 | "sort -k 1,1V -k 2,2g"}' \
+        |awk 'NR==1 { for(i=1;i<=NF;i++) { h[$i]=i }; if (! "POS" in h) { print "ERROR: POS not in saige file header"; exit 1};print } NR>1{ $h["POS"]=sprintf("%d",$h["POS"]);print $0 }' \
+        |tr ' ' '\t' \
+        |bgzip > ${prefix}${pheno}.saige.gz
+        tabix -s1 -b2 -e2 -S1 ${prefix}${pheno}.saige.gz
 
         echo "`date` converting results to ${prefix}${pheno}.gz"
         python3 <<EOF | sort -k 1,1g -k 2,2g | bgzip > ${prefix}${pheno}.gz
@@ -124,13 +127,13 @@ task combine {
         ])
 
         with gzip.open("${prefix}${pheno}.saige.gz", 'rt') as f:
-            header = {h:i for i,h in enumerate(f.readline().strip().split(' '))}
+            header = {h:i for i,h in enumerate(f.readline().strip().split('\t'))}
             for col in [v[0] for v in mapping.values()]:
                 if col not in header.keys():
                     raise Exception('column ' + col + ' not in given file')
             print('\t'.join(mapping.keys()))
             for line in f:
-                s = line.strip().split(' ')
+                s = line.strip().split('\t')
                 print('\t'.join(str(red(s[header[v[0]]], v[1])) for v in mapping.values()))
         EOF
         echo "`date` plotting qq and manha"
@@ -142,6 +145,7 @@ task combine {
 
     output {
         File saige_out = prefix + pheno + ".saige.gz"
+        File saige_out_ind = prefix + pheno + ".saige.gz.tbi"
         File out = prefix + pheno + ".gz"
         File out_ind = prefix + pheno + ".gz.tbi"
         Array[File] pngs = glob("*.png")
@@ -181,6 +185,11 @@ workflow test_combine {
     }
 
     output {
+        File saige_out = combine.saige_out
+        File saige_out_ind = combine.saige_out_ind
         File out = combine.out
+        File out_ind = combine.out_ind
+        Array[File] pngs = combine.pngs
+        Array[File] quantiles = combine.quantiles
     }
 }
