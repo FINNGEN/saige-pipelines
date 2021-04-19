@@ -106,26 +106,38 @@ task combine {
         def red(obj, func_list):
             return "NA" if obj == "NA" else reduce(lambda o, func: func[0](o, *func[1]) if func[0] is not str.format else func[0](func[1], o), func_list, obj)
 
-        mapping = OrderedDict([
-            ("#chrom", ("CHR", [(str.replace, ("chr", "")), (str.replace, ("X", "23")), (str.replace, ("Y", "24")), (str.replace, ("MT", "25")), (str.replace, ("M", "25"))])),
-            ("pos", ("POS", [(float, ()), (int, ())])), # convert 1e6 to 1000000
-            ("ref", ("Allele1", [])),
-            ("alt", ("Allele2", [])),
-            ("pval", ("p.value", [(float, ()), (math.exp, ()), (str.format, ("{:.2e}"))])) if ${logPStr} else ("pval", ("p.value", [(float, ()), (str.format, ("{:.2e}"))])),
-            ("mlogp", ("p.value", [(float, ()), (abs, ()), (conv_base, ()), (str.format, ("{:.4f}"))])) if ${logPStr} else ("mlogp", ("p.value", [(float, ()), (math.log10, ()), (abs, ()), (str.format, ("{:.4f}"))])),
-            ("beta", ("BETA", [(float, ()), (str.format, ("{:.5f}"))])),
-            ("sebeta", ("SE", [(float, ()), (str.format, ("{:.5f}"))])),
-            ("af_alt", ("AF_Allele2", [(float, ()), (str.format, ("{:.2e}"))])),
-            ("af_alt_cases", ("AF.Cases", [(float, ()), (str.format, ("{:.2e}"))])),
-            ("af_alt_controls", ("AF.Controls", [(float, ()), (str.format, ("{:.2e}"))])),
-            ("n_hom_cases", ("homN_Allele2_cases", [(float, ()), (str.format, ("{:.2f}"))])),
-            ("n_het_cases", ("hetN_Allele2_cases", [(float, ()), (str.format, ("{:.2f}"))])),
-            ("n_hom_ref_cases", ("ref_homN_Allele2_cases", [(float, ()), (str.format, ("{:.2f}"))])),
-            ("n_hom_controls", ("homN_Allele2_ctrls", [(float, ()), (str.format, ("{:.2f}"))])),
-            ("n_het_controls", ("hetN_Allele2_ctrls", [(float, ()), (str.format, ("{:.2f}"))])),
-            ("n_hom_ref_controls", ("ref_homN_Allele2_ctrls", [(float, ()), (str.format, ("{:.2f}"))])),
-        ])
-
+        if "${traitType}" == "quantitative":
+            mapping = OrderedDict([
+                ("#chrom", ("CHR", [(str.replace, ("chr", "")), (str.replace, ("X", "23")), (str.replace, ("Y", "24")), (str.replace, ("MT", "25")), (str.replace, ("M", "25"))])),
+                ("pos", ("POS", [(float, ()), (int, ())])), # convert 1e6 to 1000000
+                ("ref", ("Allele1", [])),
+                ("alt", ("Allele2", [])),
+                ("pval", ("p.value", [(float, ()), (math.exp, ()), (str.format, ("{:.2e}"))])) if ${logPStr} else ("pval", ("p.value", [(float, ()), (str.format, ("{:.2e}"))])),
+                ("mlogp", ("p.value", [(float, ()), (abs, ()), (conv_base, ()), (str.format, ("{:.4f}"))])) if ${logPStr} else ("mlogp", ("p.value", [(float, ()), (math.log10, ()), (abs, ()), (str.format, ("{:.4f}"))])),
+                ("beta", ("BETA", [(float, ()), (str.format, ("{:.5f}"))])),
+                ("sebeta", ("SE", [(float, ()), (str.format, ("{:.5f}"))])),
+                ("af_alt", ("AF_Allele2", [(float, ()), (str.format, ("{:.2e}"))]))
+            ])
+        else:
+            mapping = OrderedDict([
+                ("#chrom", ("CHR", [(str.replace, ("chr", "")), (str.replace, ("X", "23")), (str.replace, ("Y", "24")), (str.replace, ("MT", "25")), (str.replace, ("M", "25"))])),
+                ("pos", ("POS", [(float, ()), (int, ())])), # convert 1e6 to 1000000
+                ("ref", ("Allele1", [])),
+                ("alt", ("Allele2", [])),
+                ("pval", ("p.value", [(float, ()), (math.exp, ()), (str.format, ("{:.2e}"))])) if ${logPStr} else ("pval", ("p.value", [(float, ()), (str.format, ("{:.2e}"))])),
+                ("mlogp", ("p.value", [(float, ()), (abs, ()), (conv_base, ()), (str.format, ("{:.4f}"))])) if ${logPStr} else ("mlogp", ("p.value", [(float, ()), (math.log10, ()), (abs, ()), (str.format, ("{:.4f}"))])),
+                ("beta", ("BETA", [(float, ()), (str.format, ("{:.5f}"))])),
+                ("sebeta", ("SE", [(float, ()), (str.format, ("{:.5f}"))])),
+                ("af_alt", ("AF_Allele2", [(float, ()), (str.format, ("{:.2e}"))])),
+                ("af_alt_cases", ("AF.Cases", [(float, ()), (str.format, ("{:.2e}"))])),
+                ("af_alt_controls", ("AF.Controls", [(float, ()), (str.format, ("{:.2e}"))])),
+                ("n_hom_cases", ("homN_Allele2_cases", [(float, ()), (str.format, ("{:.2f}"))])),
+                ("n_het_cases", ("hetN_Allele2_cases", [(float, ()), (str.format, ("{:.2f}"))])),
+                ("n_hom_ref_cases", ("ref_homN_Allele2_cases", [(float, ()), (str.format, ("{:.2f}"))])),
+                ("n_hom_controls", ("homN_Allele2_ctrls", [(float, ()), (str.format, ("{:.2f}"))])),
+                ("n_het_controls", ("hetN_Allele2_ctrls", [(float, ()), (str.format, ("{:.2f}"))])),
+                ("n_hom_ref_controls", ("ref_homN_Allele2_ctrls", [(float, ()), (str.format, ("{:.2f}"))]))
+            ])
         with gzip.open("${prefix}${pheno}.saige.gz", 'rt') as f:
             header = {h:i for i,h in enumerate(f.readline().strip().split('\t'))}
             for col in [v[0] for v in mapping.values()]:
