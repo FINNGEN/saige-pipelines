@@ -12,7 +12,7 @@
     "saige.test_combine.test.minmac": 5,
     "saige.test_combine.test.logP": true,
     "saige.test_combine.combine.logP": true,
-    "saige.test_combine.combine.chrom_regex": "chr([0-9]{1,2})|(XYM)\s",
+    "saige.test_combine.combine.chrom_regex": "^chr(([0-9]{1,2})|([XYM]))$",
 
     "saige.test_combine.combine.prefix": "",
     "saige.test_combine.combine.chrcol": "#chrom",

@@ -92,13 +92,12 @@ task combine {
         |awk 'NR == 1; NR > 1 {print $0 | "sort -k 1,1V -k 2,2g"}' \
         |awk 'NR==1 { for(i=1;i<=NF;i++) { h[$i]=i }; if (! "POS" in h) { print "ERROR: POS not in saige file header"; exit 1};print } NR>1{ $h["POS"]=sprintf("%d",$h["POS"]);print $0 }' \
         |tr ' ' '\t' \
-        |grep -E "(^${chrom_regex})|(^CHR)"
         |bgzip > ${prefix}${pheno}.saige.gz
         tabix -s1 -b2 -e2 -S1 ${prefix}${pheno}.saige.gz
 
         echo "`date` converting results to ${prefix}${pheno}.gz"
         python3 <<EOF | sort -k 1,1g -k 2,2g | bgzip > ${prefix}${pheno}.gz
-        import math, gzip
+        import math, gzip, re
         from collections import OrderedDict
         from functools import reduce
 
@@ -107,6 +106,8 @@ task combine {
 
         def red(obj, func_list):
             return "NA" if obj == "NA" else reduce(lambda o, func: func[0](o, *func[1]) if func[0] is not str.format else func[0](func[1], o), func_list, obj)
+
+        reg = re.compile("${chrom_regex}")
 
         if "${traitType}" == "quantitative":
             mapping = OrderedDict([
@@ -148,7 +149,8 @@ task combine {
             print('\t'.join(mapping.keys()))
             for line in f:
                 s = line.strip().split('\t')
-                print('\t'.join(str(red(s[header[v[0]]], v[1])) for v in mapping.values()))
+                if reg.match(s[0]):#match searches from the beginning of the string, which in this case is what we want 
+                    print('\t'.join(str(red(s[header[v[0]]], v[1])) for v in mapping.values()))
         EOF
         echo "`date` plotting qq and manha"
         qqplot.R --file ${prefix}${pheno}.gz --bp_col "${bp_col}" --pval_col "${p_valcol}" --chrcol "${chrcol}" --loglog_pval ${loglog_pval}
