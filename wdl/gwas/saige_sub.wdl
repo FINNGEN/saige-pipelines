@@ -80,6 +80,7 @@ task combine {
     String prefix
     Boolean logP
     String logPStr = if logP then "True" else "False"
+    String chrom_regex
 
     command <<<
         set -euxo pipefail
@@ -91,6 +92,7 @@ task combine {
         |awk 'NR == 1; NR > 1 {print $0 | "sort -k 1,1V -k 2,2g"}' \
         |awk 'NR==1 { for(i=1;i<=NF;i++) { h[$i]=i }; if (! "POS" in h) { print "ERROR: POS not in saige file header"; exit 1};print } NR>1{ $h["POS"]=sprintf("%d",$h["POS"]);print $0 }' \
         |tr ' ' '\t' \
+        |grep -E "(^${chrom_regex})|(^CHR)"
         |bgzip > ${prefix}${pheno}.saige.gz
         tabix -s1 -b2 -e2 -S1 ${prefix}${pheno}.saige.gz
 

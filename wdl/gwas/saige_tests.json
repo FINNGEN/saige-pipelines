@@ -12,10 +12,11 @@
     "saige.test_combine.test.minmac": 5,
     "saige.test_combine.test.logP": true,
     "saige.test_combine.combine.logP": true,
+    "saige.test_combine.combine.chrom_regex": "chr[0-9]{1,2}",
 
     "saige.test_combine.combine.prefix": "",
     "saige.test_combine.combine.chrcol": "#chrom",
     "saige.test_combine.combine.p_valcol": "pval",
     "saige.test_combine.combine.bp_col": "pos",
-    "saige.test_combine.combine.loglog_pval": 10,
+    "saige.test_combine.combine.loglog_pval": 10
 }
