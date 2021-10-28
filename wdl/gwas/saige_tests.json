@@ -1,5 +1,5 @@
 {
-    "saige.docker": "gcr.io/finngen-refinery-dev/saige:0.39.1-fg",
+    "saige.docker": "eu.gcr.io/finngen-refinery-dev/saige:0.39.1-fg",
     "saige.phenolistfile": "gs://path/to/PHENO-LIST.txt",
     "saige.nullfiletemplate": "gs://r6_data/nulls/R6_GRM_V1_LD_0.1-PHENO.rda",
     "saige.traitType": "binary",

@@ -1,5 +1,5 @@
 {
-    "saige.docker": "gcr.io/finngen-refinery-dev/saige:0.39.1-fg",
+    "saige.docker": "eu.gcr.io/finngen-refinery-dev/saige:0.39.1-fg",
     "saige.phenolistfile": "gs://path/to/PHENO-LIST.txt",
     "saige.traitType": "binary",
     "saige.loco": "FALSE",
@@ -26,7 +26,7 @@
     "saige.test_combine.combine.bp_col": "pos",
     "saige.test_combine.combine.loglog_pval": 10,
 
-    "saige.summary.docker": "gcr.io/finngen-refinery-dev/saige:0.39.1-fg-pysam",
+    "saige.summary.docker": "eu.gcr.io/finngen-refinery-dev/saige:0.39.1-fg-pysam",
     "saige.summary.finngen_annotation": "gs://r7_data/annotations/R7_annotated_variants_v0.gz",
     "saige.summary.gnomad_annotation": "gs://r4_data_west1/gnomad_functional_variants/fin_enriched_genomes_select_columns.txt.gz",
     "saige.summary.pval_thresh": 1e-6
