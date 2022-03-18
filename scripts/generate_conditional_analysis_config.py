@@ -21,12 +21,23 @@ def row_conf_line(row, null_mask, var_ratio_mask, bgen_mask, sample_file, p_thr,
     chrom = f'chr{row.chr}' if not row.chr.startswith('chr') else row.chr
     chr_n = chrom.replace("chr","")
     snp = f'chr{row.condition_snp}' if not row.condition_snp.startswith('chr') else row.condition_snp
+
     return f'{re.sub(PHENO_TAG,row.pheno,null_mask,flags=re.IGNORECASE)}\t{re.sub(PHENO_TAG,row.pheno,var_ratio_mask,flags=re.IGNORECASE)}\t' \
         f'{re.sub(CHR_TAG,chr_n,bgen_mask,flags=re.IGNORECASE)}\t{re.sub(CHR_TAG,chr_n,bgen_mask,flags=re.IGNORECASE)}.bgi\t' \
         f'{sample_file}\t{chrom}\t{row.start}\t{row.stop}\t{snp}\t{p_thr}'
 
 
+def new_conf_line(row, req_files, p_thr, add_chr=False):
+    chrom = f'chr{row.chr}' if not row.chr.startswith('chr') else row.chr
+    chr_n = chrom.replace("chr","")
+    snp = f'chr{row.condition_snp}' if not row.condition_snp.startswith('chr') else row.condition_snp
+    req_files_str = [re.sub(PHENO_TAG,row.pheno,elem,flags=re.IGNORECASE) for elem in req_files]
+    return f'{re.sub(PHENO_TAG,row.pheno,null_mask,flags=re.IGNORECASE)}\t{re.sub(PHENO_TAG,row.pheno,var_ratio_mask,flags=re.IGNORECASE)}\t' \
+        f'{re.sub(CHR_TAG,chr_n,bgen_mask,flags=re.IGNORECASE)}\t{re.sub(CHR_TAG,chr_n,bgen_mask,flags=re.IGNORECASE)}.bgi\t' \
+        f'{sample_file}\t{chrom}\t{row.start}\t{row.stop}\t{snp}\t{p_thr}'
 
+
+    
 def from_locus(args):
     loci = pd.read_csv(args.locus_file, sep="\t")
     loci.columns = map(str.lower, loci.columns)
