@@ -1,0 +1,16 @@
+{
+    "conditional_analysis.phenos_to_cond": "gs://r8_data/conditional_analysis/phenos.txt",
+    
+    "conditional_analysis.alt_col": "alt",
+    "conditional_analysis.ref_col": "ref",
+    "conditional_analysis.pos_col": "pos",
+    "conditional_analysis.chr_col": "#chrom",
+    "conditional_analysis.locus_pval_threshold": 0.00000005,
+    "conditional_analysis.conditioning_pval_threshold": 0.000001,
+    "conditional_analysis.pval_col": "pval",
+    "conditional_analysis.add_chr": True,
+
+    #DOCKERS
+    "conditional_analysis.docker": "eu.gcr.io/finngen-refinery-dev/conditional_analysis:r8 ",
+
+}
