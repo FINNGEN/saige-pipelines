@@ -8,33 +8,14 @@ from pandas.api.types import is_string_dtype
 PHENO_TAG="{PHENO}"
 CHR_TAG="{CHR}"
 
-def row_conf(pheno, chr, start, stop, condition_snp, null_mask, var_ratio_mask, bgen_mask, sample_file, p_thr):
-
-    return null_mask.replace(PHENO_TAG, pheno).cat( [var_ratio_mask.replace(PHENO_TAG,pheno) ,
-                                                      bgen_mask.replace(PHENO_TAG, pheno),
-                                                      bgen_mask.replace(PHENO_TAG, pheno),
-                                                      sample_file,
-                                                      chr, start,stop, condition_snp, p_thr], sep="\t")
 
 
-def row_conf_line(row, null_mask, var_ratio_mask, bgen_mask, sample_file, p_thr, add_chr=False):
+def row_conf_line(row, p_thr, add_chr=False):
     chrom = f'chr{row.chr}' if not row.chr.startswith('chr') else row.chr
     chr_n = chrom.replace("chr","")
     snp = f'chr{row.condition_snp}' if not row.condition_snp.startswith('chr') else row.condition_snp
 
-    return f'{re.sub(PHENO_TAG,row.pheno,null_mask,flags=re.IGNORECASE)}\t{re.sub(PHENO_TAG,row.pheno,var_ratio_mask,flags=re.IGNORECASE)}\t' \
-        f'{re.sub(CHR_TAG,chr_n,bgen_mask,flags=re.IGNORECASE)}\t{re.sub(CHR_TAG,chr_n,bgen_mask,flags=re.IGNORECASE)}.bgi\t' \
-        f'{sample_file}\t{chrom}\t{row.start}\t{row.stop}\t{snp}\t{p_thr}'
-
-
-def new_conf_line(row, req_files, p_thr, add_chr=False):
-    chrom = f'chr{row.chr}' if not row.chr.startswith('chr') else row.chr
-    chr_n = chrom.replace("chr","")
-    snp = f'chr{row.condition_snp}' if not row.condition_snp.startswith('chr') else row.condition_snp
-    req_files_str = [re.sub(PHENO_TAG,row.pheno,elem,flags=re.IGNORECASE) for elem in req_files]
-    return f'{re.sub(PHENO_TAG,row.pheno,null_mask,flags=re.IGNORECASE)}\t{re.sub(PHENO_TAG,row.pheno,var_ratio_mask,flags=re.IGNORECASE)}\t' \
-        f'{re.sub(CHR_TAG,chr_n,bgen_mask,flags=re.IGNORECASE)}\t{re.sub(CHR_TAG,chr_n,bgen_mask,flags=re.IGNORECASE)}.bgi\t' \
-        f'{sample_file}\t{chrom}\t{row.start}\t{row.stop}\t{snp}\t{p_thr}'
+    return f'{chrom}\t{row.start}\t{row.stop}\t{snp}\t{p_thr}'
 
 
     
@@ -49,10 +30,10 @@ def from_locus(args):
 
 def from_variants(args):
 
-    vars = pd.read_csv(args.snps_file, sep="\t", compression='gzip' if args.snps_file.endswith('gz') else 'infer',
-                       dtype={args.p_col:float, args.chr_col:str})
+    
+    vars = pd.read_csv(args.snps_file, sep="\t", compression='gzip' if args.snps_file.endswith('gz') else 'infer',dtype={args.p_col:float, args.chr_col:str})
 
-
+    print(vars.head())
     vars = vars[ vars[args.p_col]<args.p_threshold ].sort_values(by=[args.pheno_col,args.p_col])
     if args.exclude_regions:
         excl = args.exclude_regions.split(";")
@@ -99,8 +80,7 @@ def from_variants(args):
     mergs = pd.concat(merged, axis=1).T
 
 
-    r = mergs.apply(partial(row_conf_line, null_mask=args.null_file_mask, var_ratio_mask=args.var_ratio_mask,
-                           bgen_mask=args.bgen_file_mask, sample_file=args.sample_file, p_thr=args.p_condition_threshold, add_chr=args.add_chr), 1)
+    r = mergs.apply(partial(row_conf_line, p_thr=args.p_condition_threshold, add_chr=args.add_chr), 1)
 
     r.to_csv(args.output + ".merged", quoting=csv.QUOTE_NONE, index=False, header=False)
     loci_df.to_csv(args.output,sep="\t", index=False, header=True)
@@ -109,16 +89,7 @@ def from_variants(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Run conditional saige until no significant results remaining")
-    parser.add_argument('null_file_mask', action='store', type=str, help='mask that maps to file location of null run file. '
-                                                                         ' use {PHENO} as replacement for the pheno name( e.g. gs://data/R3.grm.v1-${PHENO}.rda)')
-    parser.add_argument('var_ratio_mask', action='store', type=str,
-                        help='mask that maps to file location of null run variance ratio file. '
-                             ' use ${PHENO} as replacement for the pheno name( e.g. gs://data/R3.grm.v1-${PHENO}.varianceRatio.txt)')
-    parser.add_argument('bgen_file_mask', action='store', type=str,
-                        help='mask that maps to file location of bgen file without postfix.  ')
-    parser.add_argument('sample_file', action='store', type=str,
-                        help='mask that maps to file location of null run files. '
-                             ' use ${PHENO} as replacement for the pheno name( e.g. gs://data/R3.grm.v1-${PHENO}.rda)')
+    
 
     parser.add_argument('output', action='store', type=str,
                         help='output file to be used as config to saige_conditional.wdl')

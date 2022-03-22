@@ -1,6 +1,17 @@
-import os,subprocess,sys
+import os,subprocess,sys,csv,gzip,logging
 from tempfile import NamedTemporaryFile
+from functools import partial
 
+def return_columns(l,columns):
+    '''
+    Returns all columns, or rather the elements, provided the columns
+    '''
+    if columns == 'all':
+        return l
+    elif type(columns) == int:
+        return l[columns]
+    elif type(columns) == list:
+        return list(map(l.__getitem__,columns))
 def pretty_print(string,l = 30):
     l = l-int(len(string)/2)
     print('-'*l + '> ' + string + ' <' + '-'*l)
@@ -38,4 +49,82 @@ def file_exists(fname):
     else:
         print(fname + ' does not exist')
         sys.exit(1)
-        
+
+
+def basic_iterator(f,separator = None,skiprows = 0,count = False,columns = 'all'):
+    '''
+    Function that iterates through a file and returns each line as a list with separator being used to split.
+    '''
+
+    open_func = return_open_func(f)
+    if not separator:separator = identify_separator(f)
+    i = open_func(f)
+    for x in range(skiprows):next(i)
+
+    if count is False:
+        for line in i:
+            line =line.strip().split(separator)
+            line = return_columns(line,columns)          
+            yield line
+    else:
+        row = 0
+        for line in i:
+            line =line.strip().split(separator)
+            line = return_columns(line,columns)
+            row += 1   
+            yield row,line
+
+
+def return_open_func(f):
+    '''
+    Detects file extension and return proper open_func
+    '''
+   
+    file_path,file_root,file_extension = get_path_info(f)
+
+    if 'bgz' in file_extension:
+        #print('gzip.open with rb mode')
+        open_func = partial(gzip.open, mode = 'rb')
+    
+    elif 'gz' in file_extension:
+        #print('gzip.open with rt mode')
+        open_func = partial(gzip.open, mode = 'rt')
+
+    else:
+        #print('regular open')
+        open_func = open      
+    return open_func
+
+
+
+def identify_separator(f):
+    open_func = return_open_func(f)
+    with open_func(f) as i:header = i.readline().strip()
+    sniffer = csv.Sniffer()
+    dialect = sniffer.sniff(header)
+    return dialect.delimiter
+
+
+def get_path_info(path):
+    file_path = os.path.dirname(path)
+    basename = os.path.basename(path)
+    file_root, file_extension = os.path.splitext(basename)
+    return file_path,file_root,file_extension
+
+
+def return_header(f):
+
+    open_func = return_open_func(f)
+    with open_func(f) as i:header = i.readline().strip()
+    delimiter = identify_separator(f)
+    header = header.split(delimiter)
+    return header
+
+log_levels = {
+    'critical': logging.CRITICAL,
+    'error': logging.ERROR,
+    'warn': logging.WARNING,
+    'warning': logging.WARNING,
+    'info': logging.INFO,
+    'debug': logging.DEBUG
+}
