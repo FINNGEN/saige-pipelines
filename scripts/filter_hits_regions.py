@@ -1,68 +1,108 @@
 #!/usr/bin/env python3
 
-import argparse,os.path,shlex,subprocess,sys,subprocess,shlex
+import argparse,os.path,shlex,subprocess,sys,subprocess,shlex,logging
 from collections import defaultdict
-from utils import basic_iterator,return_header,tmp_bash,file_exists,make_sure_path_exists
+from utils import basic_iterator,return_header,tmp_bash,file_exists,make_sure_path_exists,log_levels,extract_int_from_string
 
 
+def filter_sumstats(regions_file,sumstats_file,subset_sumstats,chrom_list):
 
-def extract_regions(regions_file,sumstats_file):
+    print(f'filtering regions {subset_sumstats}')
 
-    out_file = sumstats_file + '.filtered_regions'
-    cmd = f"tabix {sumstats_file} -h -R {regions_file} > {out_file}"
-    tmp_bash(cmd)
-    
-    
+    # print header to file
+    tmp_bash(f"tabix -H  {sumstats_file} > {subset_sumstats}")
+
+    region_tmp = subset_sumstats + ".region.bed"   
+    with open(regions_file) as i,open(region_tmp,'wt') as o:
+        for line in i:
+            if extract_int_from_string(line.strip().split()[0]) in chrom_list:
+                o.write(line)                
+
+    #regions can be empty if no hits!
+    tot_regions = sum(1 for line in open(region_tmp))
+    if tot_regions:
+        logging.info(f"{tot_regions} regions to be filtered.")
+        cmd = f"tabix {sumstats_file}  -R {region_tmp} >> {subset_sumstats}"
+        tmp_bash(cmd)
+    else:
+        logging.warning(f"{regions_file} empty. No hits will be returned!")
+
+    logging.info(f"{return_header(subset_sumstats)}")
+    logging.info(f"{sum(1 for line in open(subset_sumstats)) -1} hits after filtering")
+    return region_tmp
+
 def read_regions(regions_file):
-
+    """
+    Return Chrom to regions dictionary. 
+    """
     region_dict =defaultdict(list)
-
     with open(regions_file) as i:
         for line in i:
             chrom,start,end = line.strip().split()
-            region_dict[chrom].append([start,end])
-
+            region_dict[chrom].append([int(start),int(end)])
     return region_dict
 
 
-def filter_hits(sumstats_file,regions_file,chrom_col = '#chrom',pos_col = 'pos',mlogp_col ='mlogp',ref_col = 'ref',alt_col='alt',pval_filter = 7):
-
+def filter_hits(subset_sumstats,regions_file,chrom_col = '#chrom',pos_col = 'pos',mlogp_col ='mlogp',ref_col = 'ref',alt_col='alt',pval_filter = 7):
+    """
+    Function that returns the top hit for each region. It reads in the region dict that gives for each chrom all the regions. 
+    Then it loops over all variants, identifies the region and then checks the mlop. If the hit is more signifcant, the top hit dict is updated.
+    """
 
     region_dict = read_regions(regions_file)
-    print("region dict imported")
-    subset_sumstats = sumstats_file + '.filtered_regions'
-    if not os.path.isfile(subset_sumstats):
-        print(f'filtering regions {subset_sumstats} ....',end = "",flush=True)
-        extract_regions(regions_file,sumstats_file)
-        print('done.')
-    else:
-        print('regions already filtered')
-     
+
     header =return_header(subset_sumstats)
     columns = [header.index(elem) for elem in [chrom_col,pos_col,mlogp_col,ref_col,alt_col]]
     it = basic_iterator(subset_sumstats,skiprows=1,columns = columns)
 
     mlogs = defaultdict(lambda:pval_filter)
     hits = defaultdict(str)
-    
+
     for elem in it:
         chrom,pos,mlogp,ref,alt = elem
+        pos,mlogp = int(pos),float(mlogp)
 
-        for region in region_dict[chrom]:
-            start,end = region
-            regionid = f"{chrom}:{start}-{end}"
+        # find region in which variant is included
+        regionid = ""
+        for start,end in region_dict[chrom]:
+            tmpid = f"{chrom}:{start}-{end}"
             if start <= pos <= end:
-                snpid = f"chr{chrom}_{pos}_{ref}_{alt}"
-                if float(mlogp) > mlogs[regionid]:
-                    mlogs[regionid] = float(mlogp)
-                    hits[regionid] = snpid
+                regionid = tmpid
+                break
+
+        # region should always exist since tabix filters to the regions, but better to check!
+        if regionid:
+            if mlogp > mlogs[regionid]:
+                mlogs[regionid] = mlogp
+                hits[regionid] =  f"chr{chrom}_{pos}_{ref}_{alt}"
+        else:
+            logging.warning(f"{elem} does not match any region.")
 
 
+    if not len(mlogs) == len(hits):
+        logging.warning(f"{len(hits)} hits don't match number of regions ({len(mlogs)})")
     return hits,mlogs
+
+def main(args):
+    
+    subset_sumstats = os.path.join(args.out,f"{args.pheno}_subset_regions.txt") 
+    region_tmp = filter_sumstats(args.regions,args.sumstats,subset_sumstats,args.chroms)
+
+    print("Processing data...",end="",flush=True)
+    hits,mlogs = filter_hits(subset_sumstats,region_tmp,args.chr_col,args.pos_col,args.mlogp_col,args.ref_col,args.alt_col,args.pval_threshold)    
+    print('done.')
+    
+    out_file = os.path.join(args.out,f"{args.pheno}_sig_hits.txt")
+    print(f'dumping results to {out_file}')
+    with open(out_file,'wt') as o:
+        for region in hits:
+            chrom,crange = region.split(':')
+            o.write('\t'.join(map(str,[args.pheno,chrom,region,hits[region],mlogs[region]])) + '\n')
+
     
 if __name__ == '__main__':
     
-    parser = argparse.ArgumentParser(description ="Recursive conditional analysis for regenie.")
+    parser = argparse.ArgumentParser(description ="Filtering of sumstats based on regions.")
 
     parser.add_argument('--pval_threshold',type = float,help ='Threshold limit (pvar -log(mpval) ',default = 7)
     parser.add_argument('--regions',type = file_exists,help ='Path to regions bed',required=True)
@@ -73,15 +113,17 @@ if __name__ == '__main__':
     parser.add_argument('--alt_col', default="alt", type=str)
     parser.add_argument('--mlogp_col', default="mlogp", type=str)
     parser.add_argument('--out',type = str,help ='Output Directory',required=True)
-    parser.add_argument('--pheno',type = str,help ='Pheno column',required=True)
+    parser.add_argument('--pheno',type = str,help ='Phenotype',required=True)
+    parser.add_argument("--chroms",nargs='+',type=str,help="List of chromosomes to include",default =list(map(str,range(1,23))))
+    parser.add_argument( "-log",  "--log",  default="info", choices = log_levels, help=(  "Provide logging level. " "Example --log debug"))
 
     args = parser.parse_args()
     make_sure_path_exists(os.path.dirname(args.out))
 
-    hits,mlogs = filter_hits(args.sumstats,args.regions,args.chr_col,args.pos_col,args.mlogp_col,args.ref_col,args.alt_col,args.pval_threshold)
+    level = log_levels[args.log]
+    logging.basicConfig(level=level,format="%(levelname)s: %(message)s")
+
+    logging.info(f"{' '.join(args.chroms)} chromosomes included.")
+    main(args)
     
-    out_file = os.path.join(args.out,f"{args.pheno}_sig_hits.txt")
-    print(f'dumping results to {out_file}')
-    with open(out_file,'wt') as o:
-        for hit in hits:
-            o.write('\t'.join(map(str,[args.pheno,hit,hits[hit],mlogs[hit]])) + '\n')
+   

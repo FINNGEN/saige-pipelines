@@ -1,4 +1,4 @@
-import os,subprocess,sys,csv,gzip,logging
+import os,subprocess,sys,csv,gzip,logging,mmap,re
 from tempfile import NamedTemporaryFile
 from functools import partial
 
@@ -128,3 +128,6 @@ log_levels = {
     'info': logging.INFO,
     'debug': logging.DEBUG
 }
+
+def extract_int_from_string(s):
+    return re.search(r'\d+', s).group()
