@@ -46,7 +46,7 @@ task extract_cond_regions {
   File region = sub(region_root,"PHENO",pheno)
   File sumstats = sub(summary_root,"PHENO",pheno)
   File index = sumstats + ".tbi"
-  Int disk_size = ceil(size(sumstats,'GB')) + ceil(size(region,'GB')) + 10
+  Int disk_size = ceil(size(sumstats,'GB')) + ceil(size(region,'GB')) + 1
   
   String outfile= pheno + "_sig_hits.txt" 
   
@@ -54,7 +54,7 @@ task extract_cond_regions {
 
     python3 /scripts/filter_hits_regions.py --sumstats ~{sumstats} --regions ~{region} \
     --pheno ~{pheno} --pval_threshold ~{mlogp_threshold} \
-    --pos_col ~{pos_col} --chr_col ~{chr_col} --ref_col ~{ref_col} --alt_col ~{alt_col} --mlogp_col ~{mlogp_col}  --chroms ~{sep=" " chroms} --out ./ 
+    --pos_col ~{pos_col} --chr_col ~{chr_col} --ref_col ~{ref_col} --alt_col ~{alt_col} --mlogp_col ~{mlogp_col}  --chroms ~{sep=" " chroms} --out ./ --log info
   >>>
   
   output {

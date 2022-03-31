@@ -12,6 +12,8 @@ def return_columns(l,columns):
         return l[columns]
     elif type(columns) == list:
         return list(map(l.__getitem__,columns))
+
+    
 def pretty_print(string,l = 30):
     l = l-int(len(string)/2)
     print('-'*l + '> ' + string + ' <' + '-'*l)
@@ -56,6 +58,12 @@ def basic_iterator(f,separator = None,skiprows = 0,count = False,columns = 'all'
     Function that iterates through a file and returns each line as a list with separator being used to split.
     '''
 
+    # converts column names to indexes
+    if type(columns) == list:
+        if all(isinstance(n, str) for n in columns):
+            header = return_header(f)
+            columns = [header.index(elem) for elem in columns]
+   
     open_func = return_open_func(f)
     if not separator:separator = identify_separator(f)
     i = open_func(f)
@@ -131,3 +139,16 @@ log_levels = {
 
 def extract_int_from_string(s):
     return re.search(r'\d+', s).group()
+
+
+def progressBar(value, endvalue, bar_length=20):
+    '''
+    Writes progress bar, given value (eg.current row) and endvalue(eg. total number of rows)
+    '''
+
+    percent = float(value) / endvalue
+    arrow = '-' * int(round(percent * bar_length)-1) + '>'
+    spaces = ' ' * (bar_length - len(arrow))
+
+    sys.stdout.write("\rPercent: [{0}] {1}%".format(arrow + spaces, int(round(percent * 100))))
+    sys.stdout.flush()

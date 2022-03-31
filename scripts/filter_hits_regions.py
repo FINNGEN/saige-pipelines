@@ -2,16 +2,17 @@
 
 import argparse,os.path,shlex,subprocess,sys,subprocess,shlex,logging
 from collections import defaultdict
-from utils import basic_iterator,return_header,tmp_bash,file_exists,make_sure_path_exists,log_levels,extract_int_from_string
+from utils import basic_iterator,return_header,tmp_bash,file_exists,make_sure_path_exists,log_levels,extract_int_from_string,pretty_print
 
 
 def filter_sumstats(regions_file,sumstats_file,subset_sumstats,chrom_list):
 
     print(f'filtering regions {subset_sumstats}')
 
-    # print header to file
+    # print header to file so that even if regions are empty the header is present
     tmp_bash(f"tabix -H  {sumstats_file} > {subset_sumstats}")
 
+    # new region to be used after chrom filtering
     region_tmp = subset_sumstats + ".region.bed"   
     with open(regions_file) as i,open(region_tmp,'wt') as o:
         for line in i:
@@ -27,7 +28,6 @@ def filter_sumstats(regions_file,sumstats_file,subset_sumstats,chrom_list):
     else:
         logging.warning(f"{regions_file} empty. No hits will be returned!")
 
-    logging.info(f"{return_header(subset_sumstats)}")
     logging.info(f"{sum(1 for line in open(subset_sumstats)) -1} hits after filtering")
     return region_tmp
 
@@ -46,19 +46,17 @@ def read_regions(regions_file):
 def filter_hits(subset_sumstats,regions_file,chrom_col = '#chrom',pos_col = 'pos',mlogp_col ='mlogp',ref_col = 'ref',alt_col='alt',pval_filter = 7):
     """
     Function that returns the top hit for each region. It reads in the region dict that gives for each chrom all the regions. 
-    Then it loops over all variants, identifies the region and then checks the mlop. If the hit is more signifcant, the top hit dict is updated.
+    Then it loops over all variants, identifies the region and then checks the mlogp. If the hit is more signifcant, the top hit dict is updated.
     """
 
     region_dict = read_regions(regions_file)
 
-    header =return_header(subset_sumstats)
-    columns = [header.index(elem) for elem in [chrom_col,pos_col,mlogp_col,ref_col,alt_col]]
-    it = basic_iterator(subset_sumstats,skiprows=1,columns = columns)
+
 
     mlogs = defaultdict(lambda:pval_filter)
     hits = defaultdict(str)
-
-    for elem in it:
+ 
+    for elem in basic_iterator(subset_sumstats,skiprows=1,columns =  [chrom_col,pos_col,mlogp_col,ref_col,alt_col]):
         chrom,pos,mlogp,ref,alt = elem
         pos,mlogp = int(pos),float(mlogp)
 
@@ -104,7 +102,7 @@ if __name__ == '__main__':
     
     parser = argparse.ArgumentParser(description ="Filtering of sumstats based on regions.")
 
-    parser.add_argument('--pval_threshold',type = float,help ='Threshold limit (pvar -log(mpval) ',default = 7)
+    parser.add_argument('--pval_threshold','--pt',type = float,help ='Threshold limit (pvar -log(mpval) ',default = 7)
     parser.add_argument('--regions',type = file_exists,help ='Path to regions bed',required=True)
     parser.add_argument('--sumstats',type = file_exists,help ='Path to original sumstats',required=True)
     parser.add_argument('--chr_col', default="#chrom", type=str)
@@ -115,7 +113,7 @@ if __name__ == '__main__':
     parser.add_argument('--out',type = str,help ='Output Directory',required=True)
     parser.add_argument('--pheno',type = str,help ='Phenotype',required=True)
     parser.add_argument("--chroms",nargs='+',type=str,help="List of chromosomes to include",default =list(map(str,range(1,23))))
-    parser.add_argument( "-log",  "--log",  default="info", choices = log_levels, help=(  "Provide logging level. " "Example --log debug"))
+    parser.add_argument( "-log",  "--log",  default="warning", choices = log_levels, help=(  "Provide logging level. " "Example --log debug"))
 
     args = parser.parse_args()
     make_sure_path_exists(os.path.dirname(args.out))
@@ -124,6 +122,7 @@ if __name__ == '__main__':
     logging.basicConfig(level=level,format="%(levelname)s: %(message)s")
 
     logging.info(f"{' '.join(args.chroms)} chromosomes included.")
+    pretty_print(f"{args.pheno}")
     main(args)
     
    
