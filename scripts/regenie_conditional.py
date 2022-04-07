@@ -1,16 +1,27 @@
-
 #!/usr/bin/env python3
 
-import argparse,os.path,shlex,subprocess,sys,subprocess,shlex,json,logging
+import argparse,os.path,shlex,subprocess,sys,subprocess,shlex,json,logging,multiprocessing
 import numpy as np
 from utils import file_exists,make_sure_path_exists,tmp_bash,pretty_print,return_open_func,log_levels,basic_iterator,return_header
 from pathlib import Path
 import pandas as pd
 
-regenie_covariates= "SEX_IMPUTED,AGE_AT_DEATH_OR_END_OF_FOLLOWUP,PC{1:10},IS_FINNGEN2_CHIP,BATCH_DS1_BOTNIA_Dgi_norm,BATCH_DS10_FINRISK_Palotie_norm,BATCH_DS11_FINRISK_PredictCVD_COROGENE_Tarto_norm,BATCH_DS12_FINRISK_Summit_norm,BATCH_DS13_FINRISK_Bf_norm,BATCH_DS14_GENERISK_norm,BATCH_DS15_H2000_Broad_norm,BATCH_DS16_H2000_Fimm_norm,BATCH_DS17_H2000_Genmets_norm,BATCH_DS18_MIGRAINE_1_norm,BATCH_DS19_MIGRAINE_2_norm,BATCH_DS2_BOTNIA_T2dgo_norm,BATCH_DS20_SUPER_1_norm,BATCH_DS21_SUPER_2_norm,BATCH_DS22_TWINS_1_norm,BATCH_DS23_TWINS_2_norm,BATCH_DS24_SUPER_3_norm,BATCH_DS25_BOTNIA_Regeneron_norm,BATCH_DS3_COROGENE_Sanger_norm,BATCH_DS4_FINRISK_Corogene_norm,BATCH_DS5_FINRISK_Engage_norm,BATCH_DS6_FINRISK_FR02_Broad_norm,BATCH_DS7_FINRISK_FR12_norm,BATCH_DS8_FINRISK_Finpcga_norm,BATCH_DS9_FINRISK_Mrpred_norm"
+regenie_covariates= "SEX_IMPUTED,AGE_AT_DEATH_OR_END_OF_FOLLOWUP,PC1,PC2,PC3,PC4,PC5,PC6,PC7,PC8,PC9,PC10,IS_FINNGEN2_CHIP,BATCH_DS1_BOTNIA_Dgi_norm,BATCH_DS10_FINRISK_Palotie_norm,BATCH_DS11_FINRISK_PredictCVD_COROGENE_Tarto_norm,BATCH_DS12_FINRISK_Summit_norm,BATCH_DS13_FINRISK_Bf_norm,BATCH_DS14_GENERISK_norm,BATCH_DS15_H2000_Broad_norm,BATCH_DS16_H2000_Fimm_norm,BATCH_DS17_H2000_Genmets_norm,BATCH_DS18_MIGRAINE_1_norm,BATCH_DS19_MIGRAINE_2_norm,BATCH_DS2_BOTNIA_T2dgo_norm,BATCH_DS20_SUPER_1_norm,BATCH_DS21_SUPER_2_norm,BATCH_DS22_TWINS_1_norm,BATCH_DS23_TWINS_2_norm,BATCH_DS24_SUPER_3_norm,BATCH_DS25_BOTNIA_Regeneron_norm,BATCH_DS3_COROGENE_Sanger_norm,BATCH_DS4_FINRISK_Corogene_norm,BATCH_DS5_FINRISK_Engage_norm,BATCH_DS6_FINRISK_FR02_Broad_norm,BATCH_DS7_FINRISK_FR12_norm,BATCH_DS8_FINRISK_Finpcga_norm,BATCH_DS9_FINRISK_Mrpred_norm"
 
 
-def regenie_run(out_root,step,bgen,sample_file,pheno_file,covariates,condition_variant,locus,null_file,pheno,region,exclusion_list,log_file,regenie_cmd = "regenie",params = '--bt --bsize 200 ',):
+def filter_pheno(args):
+
+    header = return_header(args.pheno_file)
+    columns = [1,2] + [1+header.index(elem) for elem in [args.pheno] + args.covariates.split(',')]
+    tmp_pheno =   os.path.join(os.path.dirname(args.out),f"{args.pheno}_pheno.tmp")
+    if not os.path.isfile(tmp_pheno) or args.force:
+        print("Creating new pheno file...",end="",flush=True)
+        cmd = f"zcat -f {args.pheno_file}  | cut -f {','.join(map(str,columns))} > {tmp_pheno}"
+        tmp_bash(cmd)
+        print('done.')
+    return tmp_pheno
+
+def regenie_run(out_root,step,bgen,sample_file,pheno_file,covariates,condition_list,locus,null_file,pheno,region,log_file,regenie_cmd = "regenie",params = '--bt --bsize 200 ',):
     """
     Single regenie conditainal run. 
     Returns file with results after doing some renaming.
@@ -18,7 +29,7 @@ def regenie_run(out_root,step,bgen,sample_file,pheno_file,covariates,condition_v
 
     regenie_file = out_root + f"_{pheno}.regenie" #default regenie output
     out_file = out_root + f"_{pheno}_{locus}_{step}.conditional" #file where to redirect output
-    pretty_print(f"VARIANT:{condition_variant}")
+    pretty_print(f"VARIANT:{condition_list[-1]}")
     logging.info(f"generating {out_file} ...")
  
     if not os.path.isfile(out_file) or args.force:
@@ -27,21 +38,17 @@ def regenie_run(out_root,step,bgen,sample_file,pheno_file,covariates,condition_v
         #build pred
         pred_file = out_root + f"_{args.pheno}.pred"
         with open(pred_file,'wt') as o: o.write(f"{pheno}\t{null_file}")
-
-        # build exclusion list
-        tmp_exclusion = out_root + '.exclude.tmp'
-        logging.info(f"Variants to exclude :{' '.join(exclusion_list)}")
-        with open(tmp_exclusion,'wt') as o: o.write('\n'.join(exclusion_list))
-    
+   
         # build condition file
         tmp_variant = out_root + '.variant.tmp'
-        logging.info(f"Variant to condition on :{condition_variant}")
-        with open(tmp_variant,'wt') as o: o.write(condition_variant)
+        with open(tmp_variant,'wt') as o:
+            for variant in condition_list:
+                o.write(variant + '\n')
 
         # add sample file if passed
         sample_cmd = f" --sample {sample_file}"  if os.path.isfile(sample_file)  else ""
         
-        cmd = f'{regenie_cmd} --step 2 {params} --bgen {bgen}  {sample_cmd} --out {out_root} --exclude {tmp_exclusion} --pred {pred_file} --phenoFile {pheno_file} --phenoCol {pheno} --condition-list {tmp_variant} {region}  --covarFile {pheno_file} --covarColList {covariates}'
+        cmd = f'{regenie_cmd} --step 2 {params} --bgen {bgen}  {sample_cmd} --out {out_root}  --pred {pred_file} --phenoFile {pheno_file} --phenoCol {pheno} --condition-list {tmp_variant} {region}  --covarFile {pheno_file} --covarColList {covariates} --threads {multiprocessing.cpu_count()}'
         logging.debug(cmd)
         logmode = 'wt' if step == 0 else 'a'
         with open(log_file,logmode) as o:
@@ -105,37 +112,40 @@ def map_vals_to_string(vals):
     return  str(dict(zip(['beta','sebeta','mlogp'],[round(float(elem),2) for elem in vals])))
 
 
-def main(args,sum_dict):
+def main(args,tmp_pheno_file,sum_dict):
     result_file = args.out + f"_{args.pheno}_{args.locus}.independent.snps"
     with open(result_file,'wt') as o:
         header = ['VARIANT','BETA','SE','MLOG10P','BETA_cond','SE_cond','MLOG10P_cond','VARIANT_cond']
         o.write("\t".join(header) + '\n')
         #inital values to start looping
         condition_variant = args.locus
-        step,exclusion_list = 1,[args.locus]
+        print(f"Variant info from original FG sumstats {map_vals_to_string(sum_dict[condition_variant])}")
+        step,condition_list = 1,[args.locus]
+        # step is non 0 if hit is significant. Else truncate when max step is reached 
         while 0 <  step <= args.max_steps:
-            out_file,ret = regenie_run(args.out,step,args.bgen,args.sample_file,args.pheno_file,args.covariates,condition_variant,args.locus,args.null_file,args.pheno,condition_range,exclusion_list,args.log_file,params = args.regenie_params)
+            out_file,ret = regenie_run(args.out,step,args.bgen,args.sample_file,tmp_pheno_file,args.covariates,condition_list,args.locus,args.null_file,args.pheno,condition_range,args.log_file,params = args.regenie_params)
             if ret:
                 logging.error(f"RUN FAILED,check {args.log_file} for errors.")
-                return 
+                return
+            # now that we have results, let's analyze them to make sure the top hit is significant
             step,data =check_hit(out_file,step,args.pval_threshold)
             if step:
                 new_variant = data[0]
-                #print(f"Variant info from original FG sumstats {[round(float(elem),2) for elem in sum_dict[new_variant]]}")
-                print(f"Variant info from original FG sumstats {map_vals_to_string(sum_dict[new_variant])}")
-                o.write('\t'.join( [new_variant]+ sum_dict[new_variant] + data[1:] +   [','.join(exclusion_list)]) + '\n')               
+                o.write('\t'.join( [new_variant]+ sum_dict[new_variant] + data[1:] +   [','.join(condition_list)]) + '\n')
+                #update variant to conidtion on
                 condition_variant = new_variant
-                exclusion_list.append(new_variant)
+                # update condition list
+                condition_list.append(new_variant)
+                print(f"Variant info from original FG sumstats {map_vals_to_string(sum_dict[condition_variant])}")
                 print(f"Hit signficant, proceeding to condition...")
             else:
                 print("Hit not significant. Ending loop.")
-
                 
 if __name__ == '__main__':
     
     parser = argparse.ArgumentParser(description ="Recursive conditional analysis for regenie.")
 
-    parser.add_argument('--pval_threshold',type = float,help ='Threshold limit (pvar -log(mpval) ',default = 7)
+    parser.add_argument('--pval-threshold',type = float,help ='Threshold limit (pvar -log(mpval) ',default = 7)
     parser.add_argument('--pheno',type = str,help ='Pheno column',required=True)
     parser.add_argument('--out',type = str,help ='Output Directory',required=True)
     parser.add_argument('--covariates',type = str,default = regenie_covariates,help='List of covariates')
@@ -149,13 +159,13 @@ if __name__ == '__main__':
     parser.add_argument('--force',action = 'store_true',help = 'Flag for forcing re-run.')
     parser.add_argument( "-log",  "--log",  default="warning", choices = log_levels, help=(  "Provide logging level. " "Example --log debug', default='warning'"))
     parser.add_argument('--max-steps',type = int,default =10)
-    parser.add_argument('--chr_col', default="#chrom", type=str)
-    parser.add_argument('--pos_col', default="pos", type=str)
-    parser.add_argument('--ref_col', default="ref", type=str)
-    parser.add_argument('--alt_col', default="alt", type=str)
-    parser.add_argument('--mlogp_col', default="mlogp", type=str)
-    parser.add_argument('--beta', default="beta", type=str)
-    parser.add_argument('--sebeta', default="sebeta", type=str)
+    parser.add_argument('--chr_col','--chr-col', default="#chrom", type=str)
+    parser.add_argument('--pos_col','--pos-col', default="pos", type=str)
+    parser.add_argument('--ref_col','--ref-col', default="ref", type=str)
+    parser.add_argument('--alt_col','--alt-col',default="alt", type=str)
+    parser.add_argument('--mlogp_col','--mlogp-col', default="mlogp", type=str)
+    parser.add_argument('--beta_col','--beta-col', default="beta", type=str)
+    parser.add_argument('--sebeta_col','--sebeta-col', default="sebeta", type=str)
     
 
     range_group = parser.add_mutually_exclusive_group(required=True)
@@ -184,14 +194,17 @@ if __name__ == '__main__':
     pretty_print(f"MLOGP THRESHOLD: {args.pval_threshold}")
     
     # gets original sumstats data for variants
-    pval_dict_file = args.out + f"_{args.pheno}_pvals.json"
-    columns= [args.chr_col,args.pos_col,args.mlogp_col,args.ref_col,args.alt_col,args.beta,args.sebeta]
+    pval_dict_file = os.path.join(os.path.dirname(args.out),f"{args.pheno}_pvals.json")
+    columns= [args.chr_col,args.pos_col,args.mlogp_col,args.ref_col,args.alt_col,args.beta_col,args.sebeta_col]
     sum_dict = parse_sumstat_data(args.sumstats,pval_dict_file,columns)
 
     #define log_file
     args.log_file = args.out + f"_{args.pheno}_{args.locus}.log"
     print(f"Logging to {args.log_file}")
-    main(args,sum_dict)
+
+    # create tmp pheno file (lighter)
+    tmp_pheno_file = filter_pheno(args)
+    main(args,tmp_pheno_file,sum_dict)
                 
-
-
+    
+    

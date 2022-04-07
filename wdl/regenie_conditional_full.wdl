@@ -7,6 +7,10 @@ workflow conditional_analysis {
     File phenos_to_cond
 
     String mlogp_col
+    String chr_col
+    String pos_col
+    String ref_col
+    String alt_col
     Float conditioning_mlogp_threshold
     Float locus_mlogp_threshold  
     Array[String] chroms
@@ -22,10 +26,88 @@ workflow conditional_analysis {
   scatter (p in pheno_data) {
     #get hits under pval threshold
     call extract_cond_regions {
-      input: pheno=p, mlogp_threshold = locus_mlogp_threshold, docker=docker,mlogp_col = mlogp_col,chroms=chroms
-     }
+      input: pheno=p, mlogp_threshold = locus_mlogp_threshold, docker=docker,mlogp_col = mlogp_col,chr_col=chr_col,pos_col = pos_col,ref_col=ref_col,alt_col=alt_col,chroms=chroms
+    }
    }
    call merge_regions {input: docker =docker,hits=extract_cond_regions.gw_sig_res}
+
+   Map[String,String] cov_map = read_map(filter_covariates.cov_pheno_map)
+   Array[Array[String]] data = read_tsv(merge_regions.regions)
+   scatter (entry in data) {
+     String pheno = entry[0]
+     call regenie_conditional {
+       input: docker = docker, pheno = pheno,chrom=entry[1],region=entry[2],locus = entry[3],covariates = cov_map[pheno],mlogp_col = mlogp_col,chr_col=chr_col,pos_col = pos_col,ref_col=ref_col,alt_col=alt_col,pval_threshold=conditioning_mlogp_threshold
+     }
+   }
+ }
+
+
+task regenie_conditional {
+  
+  input {
+    # GENERAL PARAMS
+    String? regenie_docker
+    String docker
+    String prefix
+    # hit info
+    String pheno
+    String chrom
+    String locus
+    String region
+    # files to localize 
+    File pheno_file
+    String bgen_root
+    String null_root
+    String sumstats_root
+    # column names and stuff
+    String chr_col
+    String pos_col
+    String ref_col
+    String alt_col
+    String mlogp_col
+    String beta
+    String sebeta
+    # Script parameters/options
+    Float pval_threshold
+    Int max_steps
+    String covariates
+    String? regenie_params
+  }
+
+  # localize all files based on roots
+  File sumstats = sub(sumstats_root,"PHENO",pheno)
+  File sum_tabix = sumstats + ".tbi"
+  File null =sub(null_root,"PHENO",pheno)
+  File bgen = sub(bgen_root,'CHROM',chrom)
+  File bgen_sample = bgen + ".sample"
+
+  Int disk_size = ceil(size(bgen,'GB')) + ceil(size(sumstats,'GB')) + ceil(size(null,'GB')) + ceil(size(pheno_file,'GB')) + 10
+  String final_docker = if defined(regenie_docker) then regenie_docker else docker
+  command <<<
+
+    tabix -h ~{sumstats} ~{region} > filtered_sumstats.txt
+    
+    python3 /scripts/regenie_conditional.py \
+    --out ./~{prefix}  --bgen ~{bgen}  --null-file ~{null}  --sumstats filtered_sumstats.txt \
+    --pheno-file ~{pheno_file} --pheno ~{pheno} \
+    --locus ~{locus} --region ~{region} --pval-threshold ~{pval_threshold} --max-steps ~{max_steps} \
+    --chr-col ~{chr_col} --pos-col ~{pos_col} --ref-col ~{ref_col} --alt-col ~{alt_col} --mlogp-col ~{mlogp_col} --beta-col ~{beta} --sebeta-col ~{sebeta} \
+    --covariates ~{covariates} ~{if defined(regenie_params) then " --regenie-params" + regenie_params else ""} --log info
+  >>>
+  output {
+    Array[File] outfiles = glob("./${prefix}*")
+  }
+  
+  runtime {
+    cpu: "4"
+    docker: "${final_docker}"
+    memory: "4 GB"
+    disks: "local-disk ${disk_size} HDD"
+    zones: "europe-west1-b europe-west1-c europe-west1-d"
+    preemptible: "1"
+  
+  }
+  
 }
 
 
