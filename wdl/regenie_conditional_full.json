@@ -24,7 +24,7 @@
     "conditional_analysis.regenie_conditional.sebeta": "beta",
     "conditional_analysis.regenie_conditional.beta": "sebeta",
     "conditional_analysis.regenie_conditional.max_steps": 10,
-    "conditional_analysis.regenie_conditional.regenie_params": " --ref-first ",
+    "conditional_analysis.regenie_conditional.regenie_params": " ' --bt --bsize 200 --ref-first ' ",
 
 
     #CONDITIONAL REGIONS
@@ -40,7 +40,7 @@
 
 
     #DOCKERS
-    "conditional_analysis.docker": "eu.gcr.io/finngen-refinery-dev/conditional_analysis:r8.10 ",
-    "conditional_analysis.regenie_conditional.regenie_docker": "eu.gcr.io/finngen-refinery-dev/conditional_analysis:r8.14",
+    "conditional_analysis.docker": "eu.gcr.io/finngen-refinery-dev/conditional_analysis:r8.15 ",
+    #"conditional_analysis.regenie_conditional.regenie_docker": "eu.gcr.io/finngen-refinery-dev/conditional_analysis:r8.14",
 
 }

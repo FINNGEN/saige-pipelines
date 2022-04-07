@@ -5,6 +5,7 @@ import numpy as np
 from utils import file_exists,make_sure_path_exists,tmp_bash,pretty_print,return_open_func,log_levels,basic_iterator,return_header
 from pathlib import Path
 import pandas as pd
+from collections import defaultdict as dd
 
 regenie_covariates= "SEX_IMPUTED,AGE_AT_DEATH_OR_END_OF_FOLLOWUP,PC1,PC2,PC3,PC4,PC5,PC6,PC7,PC8,PC9,PC10,IS_FINNGEN2_CHIP,BATCH_DS1_BOTNIA_Dgi_norm,BATCH_DS10_FINRISK_Palotie_norm,BATCH_DS11_FINRISK_PredictCVD_COROGENE_Tarto_norm,BATCH_DS12_FINRISK_Summit_norm,BATCH_DS13_FINRISK_Bf_norm,BATCH_DS14_GENERISK_norm,BATCH_DS15_H2000_Broad_norm,BATCH_DS16_H2000_Fimm_norm,BATCH_DS17_H2000_Genmets_norm,BATCH_DS18_MIGRAINE_1_norm,BATCH_DS19_MIGRAINE_2_norm,BATCH_DS2_BOTNIA_T2dgo_norm,BATCH_DS20_SUPER_1_norm,BATCH_DS21_SUPER_2_norm,BATCH_DS22_TWINS_1_norm,BATCH_DS23_TWINS_2_norm,BATCH_DS24_SUPER_3_norm,BATCH_DS25_BOTNIA_Regeneron_norm,BATCH_DS3_COROGENE_Sanger_norm,BATCH_DS4_FINRISK_Corogene_norm,BATCH_DS5_FINRISK_Engage_norm,BATCH_DS6_FINRISK_FR02_Broad_norm,BATCH_DS7_FINRISK_FR12_norm,BATCH_DS8_FINRISK_Finpcga_norm,BATCH_DS9_FINRISK_Mrpred_norm"
 
@@ -18,10 +19,11 @@ def filter_pheno(args):
         print("Creating new pheno file...",end="",flush=True)
         cmd = f"zcat -f {args.pheno_file}  | cut -f {','.join(map(str,columns))} > {tmp_pheno}"
         tmp_bash(cmd)
+        logging.debug(cmd)
         print('done.')
     return tmp_pheno
 
-def regenie_run(out_root,step,bgen,sample_file,pheno_file,covariates,condition_list,locus,null_file,pheno,region,log_file,regenie_cmd = "regenie",params = '--bt --bsize 200 ',):
+def regenie_run(out_root,step,bgen,sample_file,pheno_file,covariates,condition_list,locus,null_file,pheno,region,log_file,regenie_cmd = "regenie",params = ' ',):
     """
     Single regenie conditainal run. 
     Returns file with results after doing some renaming.
@@ -48,7 +50,7 @@ def regenie_run(out_root,step,bgen,sample_file,pheno_file,covariates,condition_l
         # add sample file if passed
         sample_cmd = f" --sample {sample_file}"  if os.path.isfile(sample_file)  else ""
         
-        cmd = f'{regenie_cmd} --step 2 {params} --bgen {bgen}  {sample_cmd} --out {out_root}  --pred {pred_file} --phenoFile {pheno_file} --phenoCol {pheno} --condition-list {tmp_variant} {region}  --covarFile {pheno_file} --covarColList {covariates} --threads {multiprocessing.cpu_count()}'
+        cmd = f'{regenie_cmd} --step 2   {params} --bgen {bgen}  {sample_cmd} --out {out_root}  --pred {pred_file} --phenoFile {pheno_file} --phenoCol {pheno} --condition-list {tmp_variant} {region}  --covarFile {pheno_file} --covarColList {covariates} --threads {multiprocessing.cpu_count()}'
         logging.debug(cmd)
         logmode = 'wt' if step == 0 else 'a'
         with open(log_file,logmode) as o:
@@ -69,7 +71,7 @@ def parse_sumstat_data(sumstats,pval_dict_file,column_names = ['#chrom','pos','m
     """
     Reads in sumstats as dictionary for relevant fields.
     """
-    sum_dict = {}
+    sum_dict = dd(lambda : dd(float))
 
     if not os.path.isfile(pval_dict_file):
         logging.info("reading original pvals..")
@@ -78,8 +80,11 @@ def parse_sumstat_data(sumstats,pval_dict_file,column_names = ['#chrom','pos','m
         columns = [header.index(elem) for elem in column_names]
         it = basic_iterator(sumstats,skiprows=1,columns = columns)
         for elem in it:
-            chrom,pos,mlogp,ref,alt,beta,sebeta = elem       
-            sum_dict["chr" + '_'.join([chrom,pos,ref,alt])] = [beta,sebeta,mlogp]
+            chrom,pos,mlogp,ref,alt,beta,sebeta = elem
+            variant ="chr" + '_'.join([chrom,pos,ref,alt])
+            for key in ["beta","sebeta","mlogp"]:
+                sum_dict[variant][key] = eval(key)
+            
         logging.info("dumping pvals..")
         with open(pval_dict_file, 'wt') as fp:
             json.dump(sum_dict, fp)
@@ -112,6 +117,10 @@ def map_vals_to_string(vals):
     return  str(dict(zip(['beta','sebeta','mlogp'],[round(float(elem),2) for elem in vals])))
 
 
+def get_sum_dict_data(sum_dict,variant):
+    keys =  ["beta","sebeta","mlogp"]
+    return [sum_dict[variant][elem] for elem in keys]
+
 def main(args,tmp_pheno_file,sum_dict):
     result_file = args.out + f"_{args.pheno}_{args.locus}.independent.snps"
     with open(result_file,'wt') as o:
@@ -119,7 +128,7 @@ def main(args,tmp_pheno_file,sum_dict):
         o.write("\t".join(header) + '\n')
         #inital values to start looping
         condition_variant = args.locus
-        print(f"Variant info from original FG sumstats {map_vals_to_string(sum_dict[condition_variant])}")
+        print(f"Variant info from original FG sumstats {map_vals_to_string(get_sum_dict_data(sum_dict,condition_variant))}")
         step,condition_list = 1,[args.locus]
         # step is non 0 if hit is significant. Else truncate when max step is reached 
         while 0 <  step <= args.max_steps:
@@ -131,12 +140,12 @@ def main(args,tmp_pheno_file,sum_dict):
             step,data =check_hit(out_file,step,args.pval_threshold)
             if step:
                 new_variant = data[0]
-                o.write('\t'.join( [new_variant]+ sum_dict[new_variant] + data[1:] +   [','.join(condition_list)]) + '\n')
+                o.write('\t'.join( [new_variant]+ get_sum_dict_data(sum_dict,new_variant)  + data[1:] +   [','.join(condition_list)]) + '\n')
                 #update variant to conidtion on
                 condition_variant = new_variant
                 # update condition list
                 condition_list.append(new_variant)
-                print(f"Variant info from original FG sumstats {map_vals_to_string(sum_dict[condition_variant])}")
+                print(f"Variant info from original FG sumstats {map_vals_to_string(get_sum_dict_data(sum_dict,condition_variant))}")
                 print(f"Hit signficant, proceeding to condition...")
             else:
                 print("Hit not significant. Ending loop.")
@@ -154,7 +163,7 @@ if __name__ == '__main__':
     parser.add_argument('--sample-file',type = file_exists,help ='Path to pheno file',required=False)
     parser.add_argument('--sumstats',type = file_exists,help ='Path to original sumstats',required=True)
     parser.add_argument('--locus',type=str,help ='Initial variant/hit',required=True)
-    parser.add_argument('--regenie-params',type=str,help ='extra bgen params',default = '--bt --bsize 200 ' )
+    parser.add_argument('--regenie-params',type=str,help ='extra bgen params',default = ' --bt --bsize 200 ' )
     parser.add_argument('--null-file',type = file_exists,help ='File with null info.',required=True)
     parser.add_argument('--force',action = 'store_true',help = 'Flag for forcing re-run.')
     parser.add_argument( "-log",  "--log",  default="warning", choices = log_levels, help=(  "Provide logging level. " "Example --log debug', default='warning'"))

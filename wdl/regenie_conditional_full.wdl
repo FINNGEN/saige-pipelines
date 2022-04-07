@@ -92,7 +92,7 @@ task regenie_conditional {
     --pheno-file ~{pheno_file} --pheno ~{pheno} \
     --locus ~{locus} --region ~{region} --pval-threshold ~{pval_threshold} --max-steps ~{max_steps} \
     --chr-col ~{chr_col} --pos-col ~{pos_col} --ref-col ~{ref_col} --alt-col ~{alt_col} --mlogp-col ~{mlogp_col} --beta-col ~{beta} --sebeta-col ~{sebeta} \
-    --covariates ~{covariates} ~{if defined(regenie_params) then " --regenie-params" + regenie_params else ""} --log info
+    --covariates ~{covariates} ~{if defined(regenie_params) then " --regenie-params " + regenie_params else ""} --log info
   >>>
   output {
     Array[File] outfiles = glob("./${prefix}*")
