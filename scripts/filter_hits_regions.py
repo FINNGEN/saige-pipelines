@@ -4,6 +4,9 @@ import argparse,os.path,shlex,subprocess,sys,subprocess,shlex,logging
 from collections import defaultdict
 from utils import basic_iterator,return_header,tmp_bash,file_exists,make_sure_path_exists,log_levels,extract_int_from_string,pretty_print
 
+sub_dict =  {str(elem):str(elem) for elem in range(1,23)}
+sub_dict.update({"X":"23"})
+inv_sub_dict = {v: k for k, v in sub_dict.items()}
 
 def filter_sumstats(regions_file,sumstats_file,subset_sumstats,chrom_list):
 
@@ -16,7 +19,10 @@ def filter_sumstats(regions_file,sumstats_file,subset_sumstats,chrom_list):
     region_tmp = subset_sumstats + ".region.bed"   
     with open(regions_file) as i,open(region_tmp,'wt') as o:
         for line in i:
-            if extract_int_from_string(line.strip().split()[0]) in chrom_list:
+            string = line.strip().split()[0]
+            for key,val in sub_dict.items():
+                string.replace(key,val)
+            if extract_int_from_string(string) in chrom_list:
                 o.write(line)                
 
     #regions can be empty if no hits!
@@ -50,9 +56,7 @@ def filter_hits(subset_sumstats,regions_file,chrom_col = '#chrom',pos_col = 'pos
     """
 
     region_dict = read_regions(regions_file)
-
-
-
+    
     mlogs = defaultdict(lambda:pval_filter)
     hits = defaultdict(str)
  
@@ -72,7 +76,7 @@ def filter_hits(subset_sumstats,regions_file,chrom_col = '#chrom',pos_col = 'pos
         if regionid:
             if mlogp > mlogs[regionid]:
                 mlogs[regionid] = mlogp
-                hits[regionid] =  f"chr{chrom}_{pos}_{ref}_{alt}"
+                hits[regionid] =  f"chr{inv_sub_dict[chrom]}_{pos}_{ref}_{alt}"
         else:
             logging.warning(f"{elem} does not match any region.")
 
@@ -112,7 +116,7 @@ if __name__ == '__main__':
     parser.add_argument('--mlogp_col', default="mlogp", type=str)
     parser.add_argument('--out',type = str,help ='Output Directory',required=True)
     parser.add_argument('--pheno',type = str,help ='Phenotype',required=True)
-    parser.add_argument("--chroms",nargs='+',type=str,help="List of chromosomes to include",default =list(map(str,range(1,23))))
+    parser.add_argument("--chroms",nargs='+',type=str,help="List of chromosomes to include",default =list(map(str,range(1,24))))
     parser.add_argument( "-log",  "--log",  default="warning", choices = log_levels, help=(  "Provide logging level. " "Example --log debug"))
 
     args = parser.parse_args()
