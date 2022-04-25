@@ -95,12 +95,20 @@ def main(args):
     print('done.')
     
     out_file = os.path.join(args.out,f"{args.pheno}_sig_hits.txt")
+    chroms = list(set([region.split(':')[0] for region in hits]))
+    chrom_files = [out_file.replace('.txt',f"_{chrom}.txt") for chrom in chroms]
+    for f in chrom_files:
+        if os.path.isfile(f):
+            os.remove(f)
+    
     print(f'dumping results to {out_file}')
     with open(out_file,'wt') as o:
         for region in hits:
             chrom,crange = region.split(':')
+            chrom_file = out_file.replace('.txt',f"_{chrom}.txt")
             o.write('\t'.join(map(str,[args.pheno,chrom,region,hits[region],mlogs[region]])) + '\n')
-
+            with open(chrom_file,'at') as tmp:
+                tmp.write('\t'.join(map(str,[args.pheno,chrom,region,hits[region],mlogs[region]])) + '\n')
     
 if __name__ == '__main__':
     

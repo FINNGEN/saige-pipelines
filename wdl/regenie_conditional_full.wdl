@@ -5,7 +5,8 @@ workflow conditional_analysis {
   input {
     String docker
     File phenos_to_cond
-
+    String prefix
+    
     String mlogp_col
     String chr_col
     String pos_col
@@ -31,15 +32,73 @@ workflow conditional_analysis {
    }
    call merge_regions {input: docker =docker,hits=extract_cond_regions.gw_sig_res}
 
+   Array[File] cond_regions = flatten(extract_cond_regions.pheno_chrom_regions)
    Map[String,String] cov_map = read_map(filter_covariates.cov_pheno_map)
-   Array[Array[String]] data = read_tsv(merge_regions.regions)
-   scatter (entry in data) {
-     String pheno = entry[0]
-     call regenie_conditional {
-       input: docker = docker, pheno = pheno,chrom=entry[1],region=entry[2],locus = entry[3],covariates = cov_map[pheno],mlogp_col = mlogp_col,chr_col=chr_col,pos_col = pos_col,ref_col=ref_col,alt_col=alt_col,pval_threshold=conditioning_mlogp_threshold
-     }
+
+   # loop over pheno/chrom regions
+   scatter (region in cond_regions) {
+     Array[Array[String]] data = read_tsv(region)
+     String pheno = data[0][0]
+     String chrom = data[0][1]
+
+    call regenie_conditional {
+       input: docker = docker, prefix=prefix,locus_list=region,pheno=pheno,chrom=chrom,covariates = cov_map[pheno],mlogp_col = mlogp_col,chr_col=chr_col,pos_col = pos_col,ref_col=ref_col,alt_col=alt_col,pval_threshold=conditioning_mlogp_threshold
+     }    
    }
- }
+
+   Array[File] results = flatten(regenie_conditional.conditional_chains)
+   call merge_results{input:docker=docker,prefix=prefix,result_list = results,phenos_list = phenos_to_cond}
+   
+}
+ 
+
+task merge_results {
+
+  input {
+    Array[File] result_list
+    File phenos_list
+    String docker
+    String prefix
+  }
+
+  command <<<
+    cat ~{write_lines(result_list)} > results.txt 
+    # add prefix and suffix to make sure matching is not based on partially similar pheno names (ICD roots)
+    cat ~{phenos_list} |awk  '{print "'~{prefix}'_"$0"_chr"}' > phenos.txt
+    
+    # match pheno names and files and extract phenos back by removing pre/suff ix
+    grep -of phenos.txt results.txt  | sed 's/_chr//g' > match_phenos.txt 
+    # same grepping but only keeping file path
+    grep -f phenos.txt results.txt > match_paths.txt 
+
+    #now paste together the two files to have a tab separated pheno and filepath
+    paste match_phenos.txt match_paths.txt > tmp.txt && head tmp.txt
+    
+    # write header in each pheno file
+    head -n1 results.txt | xargs head -n1 > header.txt
+    # loop through phenos and write header line to each pheno output
+    while read f; do cp header.txt $f.independent_snps.txt; done < <(cut -f1 tmp.txt)
+    # append to pheno output  the content of each matching regenie output
+    while read line; do arr=($line) && echo ${arr[0]} && cat ${arr[1]} |sed -e 1d >> ${arr[0]}.independent_snps.txt; done < tmp.txt
+  >>>
+  
+  output {
+    Array[File] pheno_independent_snps = glob("${prefix}*.txt")    
+  }
+  
+  runtime {
+    cpu: "4"
+    docker: "${docker}"
+    memory: "4 GB"
+    disks: "local-disk 10 HDD"
+    zones: "europe-west1-b europe-west1-c europe-west1-d"
+    preemptible: "1"
+  
+  }
+  
+
+  
+}
 
 
 task regenie_conditional {
@@ -50,10 +109,9 @@ task regenie_conditional {
     String docker
     String prefix
     # hit info
+    File locus_list
     String pheno
     String chrom
-    String locus
-    String region
     # files to localize 
     File pheno_file
     String bgen_root
@@ -74,32 +132,40 @@ task regenie_conditional {
     String? regenie_params
   }
 
-  # localize all files based on roots
+  # localize all files based on roots and pheno/chrom info
   File sumstats = sub(sumstats_root,"PHENO",pheno)
   File sum_tabix = sumstats + ".tbi"
   File null =sub(null_root,"PHENO",pheno)
   File bgen = sub(bgen_root,'CHROM',chrom)
   File bgen_sample = bgen + ".sample"
-
+  # runtime params based on file sizes
   Int disk_size = ceil(size(bgen,'GB')) + ceil(size(sumstats,'GB')) + ceil(size(null,'GB')) + ceil(size(pheno_file,'GB')) + 10
   String final_docker = if defined(regenie_docker) then regenie_docker else docker
-  command <<<
 
-    tabix -h ~{sumstats} ~{region} > filtered_sumstats.txt
+  Int cpus = 3*length(read_lines(locus_list))
+
+  command <<<
+    
+    echo ~{pheno} ~{chrom} ~{cpus} 
+    cut -f 3,4 ~{locus_list} > locus_list.txt
+    tabix -h ~{sumstats}  ~{chrom} > region_sumstats.txt
     
     python3 /scripts/regenie_conditional.py \
-    --out ./~{prefix}  --bgen ~{bgen}  --null-file ~{null}  --sumstats filtered_sumstats.txt \
+    --out ./~{prefix}  --bgen ~{bgen}  --null-file ~{null}  --sumstats region_sumstats.txt \
     --pheno-file ~{pheno_file} --pheno ~{pheno} \
-    --locus ~{locus} --region ~{region} --pval-threshold ~{pval_threshold} --max-steps ~{max_steps} \
+    --locus_list locus_list.txt  --pval-threshold ~{pval_threshold} --max-steps ~{max_steps} \
     --chr-col ~{chr_col} --pos-col ~{pos_col} --ref-col ~{ref_col} --alt-col ~{alt_col} --mlogp-col ~{mlogp_col} --beta-col ~{beta} --sebeta-col ~{sebeta} \
     --covariates ~{covariates} ~{if defined(regenie_params) then " --regenie-params " + regenie_params else ""} --log info
+
   >>>
   output {
-    Array[File] outfiles = glob("./${prefix}*")
+    Array[File] conditional_chains = glob("./${prefix}*.snps")
+    Array[File] logs = glob("./${prefix}*.log")
+    Array[File] regenie_logs = glob("./${prefix}*.conditional")    
   }
   
   runtime {
-    cpu: "4"
+    cpu: "~{cpus}"
     docker: "${final_docker}"
     memory: "4 GB"
     disks: "local-disk ${disk_size} HDD"
@@ -220,6 +286,7 @@ task extract_cond_regions {
   >>>
   
   output {
+    Array[File] pheno_chrom_regions = glob("*sig_hits_*")
     File gw_sig_res = outfile
   }
   
@@ -242,6 +309,7 @@ task merge_regions {
   }
 
   String outfile = "regions.txt"
+
   command <<<
     while read f; do cat $f >> ~{outfile}; done <~{write_lines(hits)}
   >>>

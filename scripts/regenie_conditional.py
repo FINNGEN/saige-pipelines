@@ -2,7 +2,7 @@
 
 import argparse,os.path,shlex,subprocess,sys,subprocess,shlex,json,logging,multiprocessing
 import numpy as np
-from utils import file_exists,make_sure_path_exists,tmp_bash,pretty_print,return_open_func,log_levels,basic_iterator,return_header
+from utils import file_exists,make_sure_path_exists,tmp_bash,pretty_print,return_open_func,log_levels,basic_iterator,return_header,check_region
 from pathlib import Path
 import pandas as pd
 from collections import defaultdict as dd
@@ -62,7 +62,7 @@ def regenie_run(out_root,step,bgen,sample_file,pheno_file,covariates,condition_l
 
         #spring cleaning if run is successful
         if not ret:
-            for f in [pred_file,tmp_variant,out_root + '.log'] : os.remove(f)
+            for f in [pred_file,tmp_variant,out_root + '.log',pheno_file] : os.remove(f)
             os.replace(regenie_file,out_file)
 
     else:
@@ -90,7 +90,7 @@ def parse_sumstat_data(sumstats,pval_dict_file,column_names = ['#chrom','pos','m
             for key in ["beta","sebeta","mlogp"]:
                 sum_dict[variant][key] = eval(key)
             
-        logging.info(f"dumping pvals..{pval_dict_file}")
+        logging.info(f"dumping pvals..{pval_dict_file} {len(sum_dict)}")
         with open(pval_dict_file, 'wt') as fp:
             json.dump(sum_dict, fp)
         logging.info('done.')
@@ -99,7 +99,7 @@ def parse_sumstat_data(sumstats,pval_dict_file,column_names = ['#chrom','pos','m
         with open(pval_dict_file) as json_file:
             sum_dict = json.load(json_file)
         logging.info('done.')
-
+    logging.info(f"{len(sum_dict)} original variants in sumstats")
     return sum_dict
 
 def check_hit(out_file,step,threshold=7):
@@ -126,22 +126,28 @@ def get_sum_dict_data(sum_dict,variant):
     keys =  ["beta","sebeta","mlogp"]
     return [sum_dict[variant][elem] for elem in keys]
 
-def main(args,tmp_pheno_file,sum_dict):
-    result_file = args.out + f"_{args.pheno}_{args.locus}.independent.snps"
+def main(locus,region,args,tmp_pheno_file,sum_dict):
+
+    pretty_print(f"{locus} {region} conditional chain.",50)
+    #define log_file
+    log_file = args.out + f"_{args.pheno}_{locus}.log"
+    print(f"Logging to {log_file}")
+    
+    result_file = args.out + f"_{args.pheno}_{locus}.independent.snps"
     #inital values to start looping
-    condition_variant = args.locus
+    condition_variant = locus
     with open(result_file,'wt') as o:
         header = ['VARIANT','BETA','SE','MLOG10P','BETA_cond','SE_cond','MLOG10P_cond','VARIANT_cond']
         o.write("\t".join(header) + '\n')
         o.write('\t'.join( [condition_variant]+ get_sum_dict_data(sum_dict,condition_variant)  +["NA"]*4    ) + '\n')
 
         print(f"Variant info from original FG sumstats {map_vals_to_string(get_sum_dict_data(sum_dict,condition_variant))}")
-        step,condition_list = 1,[args.locus]
+        step,condition_list = 1,[locus]
         # step is non 0 if hit is significant. Else truncate when max step is reached 
         while 0 <  step <= args.max_steps:
-            out_file,ret = regenie_run(args.out,step,args.bgen,args.sample_file,tmp_pheno_file,args.covariates,condition_list,args.locus,args.null_file,args.pheno,condition_range,args.log_file,params = args.regenie_params)
+            out_file,ret = regenie_run(args.out,step,args.bgen,args.sample_file,tmp_pheno_file,args.covariates,condition_list,locus,args.null_file,args.pheno,region,log_file,params = args.regenie_params)
             if ret:
-                logging.error(f"RUN FAILED,check {args.log_file} for errors.")
+                logging.error(f"RUN FAILED,check {log_file} for errors.")
                 return
             # now that we have results, let's analyze them to make sure the top hit is significant
             step,data =check_hit(out_file,step,args.pval_threshold)
@@ -156,7 +162,9 @@ def main(args,tmp_pheno_file,sum_dict):
                 print(f"Hit signficant, proceeding to condition...")
             else:
                 print("Hit not significant. Ending loop.")
-                
+
+
+
 if __name__ == '__main__':
     
     parser = argparse.ArgumentParser(description ="Recursive conditional analysis for regenie.")
@@ -169,7 +177,6 @@ if __name__ == '__main__':
     parser.add_argument('--bgen',type = file_exists,help ='Path to bgen',required=True)
     parser.add_argument('--sample-file',type = file_exists,help ='Path to pheno file',required=False)
     parser.add_argument('--sumstats',type = file_exists,help ='Path to original sumstats',required=True)
-    parser.add_argument('--locus',type=str,help ='Initial variant/hit',required=True)
     parser.add_argument('--regenie-params',type=str,help ='extra bgen params',default = ' --bt --bsize 200 ' )
     parser.add_argument('--null-file',type = file_exists,help ='File with null info.',required=True)
     parser.add_argument('--force',action = 'store_true',help = 'Flag for forcing re-run.')
@@ -185,12 +192,13 @@ if __name__ == '__main__':
     
 
     range_group = parser.add_mutually_exclusive_group(required=True)
-    range_group.add_argument('--region',type =str,help ='Region to filter CHR:START-END')
-    range_group.add_argument('--chr',type = str,help ='Chromosome to filter on')
+    range_group.add_argument('--locus_region',type =str,nargs=2,help ='Locus & Region to filter CHR:START-END')
+    range_group.add_argument('--locus_list',type = file_exists,help="File with list of locus and regions")
 
     args = parser.parse_args()
     make_sure_path_exists(os.path.dirname(args.out))
 
+    # logging level
     level = log_levels[args.log]
     logging.basicConfig(level=level,format="%(levelname)s: %(message)s")
     
@@ -201,10 +209,6 @@ if __name__ == '__main__':
                 args.sample_file = sample_file
                 logging.warning(f"Using {args.sample_file} as sample file.")
 
-    # formatting of args for regenie
-    if args.region: condition_range = f" --range {args.region}"
-    if args.chr: condition_range = f" --chr {chr}"
-
     # figure out whether threshold is pval or mlogp
     if args.pval_threshold <1:args.pval_threshold = -np.log10(args.pval_threshold)
     pretty_print(f"MLOGP THRESHOLD: {args.pval_threshold}")
@@ -214,13 +218,20 @@ if __name__ == '__main__':
     columns= [args.chr_col,args.pos_col,args.mlogp_col,args.ref_col,args.alt_col,args.beta_col,args.sebeta_col]
     sum_dict = parse_sumstat_data(args.sumstats,pval_dict_file,columns)
 
-    #define log_file
-    args.log_file = args.out + f"_{args.pheno}_{args.locus}.log"
-    print(f"Logging to {args.log_file}")
+    # formatting of args for regenie
+    if args.locus_region:  region_list  = [check_region(*args.locus_region)]
+    if args.locus_list:
+        region_list = []
+        with open(args.locus_list) as i:
+            for line in i:
+                region_list.append(check_region(*line.strip().split()))
 
+    logging.info(region_list)
+    
     # create tmp pheno file (lighter)
     tmp_pheno_file = filter_pheno(args)
-    main(args,tmp_pheno_file,sum_dict)
+    for locus,region in region_list:
+        main(locus,region,args,tmp_pheno_file,sum_dict)
                 
     
     

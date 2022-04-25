@@ -152,3 +152,8 @@ def progressBar(value, endvalue, bar_length=20):
 
     sys.stdout.write("\rPercent: [{0}] {1}%".format(arrow + spaces, int(round(percent * 100))))
     sys.stdout.flush()
+    
+def check_region(locus,region):
+    if ':' in locus and  '-' in locus:
+        locus,region = region,locus
+    return locus,f" --range {region} "
