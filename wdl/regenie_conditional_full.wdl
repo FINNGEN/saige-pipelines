@@ -17,6 +17,7 @@ workflow conditional_analysis {
     Array[String] chroms
     Array[String] covariates
     File pheno_file
+    String sumstats_root
 
   }
 
@@ -27,7 +28,7 @@ workflow conditional_analysis {
   scatter (p in pheno_data) {
     #get hits under pval threshold
     call extract_cond_regions {
-      input: pheno=p, mlogp_threshold = locus_mlogp_threshold, docker=docker,mlogp_col = mlogp_col,chr_col=chr_col,pos_col = pos_col,ref_col=ref_col,alt_col=alt_col,chroms=chroms
+      input: pheno=p, mlogp_threshold = locus_mlogp_threshold, docker=docker,mlogp_col = mlogp_col,chr_col=chr_col,pos_col = pos_col,ref_col=ref_col,alt_col=alt_col,chroms=chroms,sumstats_root=sumstats_root
     }
    }
    call merge_regions {input: docker =docker,hits=extract_cond_regions.gw_sig_res}
@@ -42,7 +43,7 @@ workflow conditional_analysis {
      String chrom = data[0][1]
 
     call regenie_conditional {
-       input: docker = docker, prefix=prefix,locus_list=region,pheno=pheno,chrom=chrom,covariates = cov_map[pheno],mlogp_col = mlogp_col,chr_col=chr_col,pos_col = pos_col,ref_col=ref_col,alt_col=alt_col,pval_threshold=conditioning_mlogp_threshold
+       input: docker = docker, prefix=prefix,locus_list=region,pheno=pheno,chrom=chrom,covariates = cov_map[pheno],mlogp_col = mlogp_col,chr_col=chr_col,pos_col = pos_col,ref_col=ref_col,alt_col=alt_col,pval_threshold=conditioning_mlogp_threshold,sumstats_root=sumstats_root
      }    
    }
 
@@ -257,7 +258,7 @@ task extract_cond_regions {
   input {
     
     String pheno
-    String summary_root
+    String sumstats_root
     String region_root
     String chr_col
     String pos_col
@@ -272,7 +273,7 @@ task extract_cond_regions {
   }
 
   File region = sub(region_root,"PHENO",pheno)
-  File sumstats = sub(summary_root,"PHENO",pheno)
+  File sumstats = sub(sumstats_root,"PHENO",pheno)
   File index = sumstats + ".tbi"
   Int disk_size = ceil(size(sumstats,'GB')) + ceil(size(region,'GB')) + 1
   

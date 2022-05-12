@@ -13,12 +13,15 @@ sub_dict =  {str(elem):str(elem) for elem in range(1,23)}
 sub_dict.update({"X":"23"})
 inv_sub_dict = {v: k for k, v in sub_dict.items()}
 
+    
 
 def filter_pheno(args):
-
+    """
+    Extracts pheno column from big file so i don't have to reextract it every time.
+    """
     header = return_header(args.pheno_file)
     columns = [1,2] + [1+header.index(elem) for elem in [args.pheno] + args.covariates.split(',')]
-    tmp_pheno =   os.path.join(os.path.dirname(args.out),f"{args.pheno}_pheno.tmp")
+    tmp_pheno =   os.path.join(args.tmp_dir,f"{args.pheno}_pheno.tmp")
     if not os.path.isfile(tmp_pheno) or args.force:
         print("Creating new pheno file...",end="",flush=True)
         cmd = f"zcat -f {args.pheno_file}  | cut -f {','.join(map(str,columns))} > {tmp_pheno}"
@@ -27,26 +30,26 @@ def filter_pheno(args):
         print('done.')
     return tmp_pheno
 
-def regenie_run(out_root,step,bgen,sample_file,pheno_file,covariates,condition_list,locus,null_file,pheno,region,log_file,regenie_cmd = "regenie",params = ' ',):
+def regenie_run(args,step,bgen,sample_file,pheno_file,covariates,condition_list,locus,null_file,pheno,region,log_file,regenie_cmd = "regenie",params = ' ',):
     """
     Single regenie conditainal run. 
     Returns file with results after doing some renaming.
     """
-
-    regenie_file = out_root + f"_{pheno}.regenie" #default regenie output
-    out_file = out_root + f"_{pheno}_{locus}_{step}.conditional" #file where to redirect output
+   
+    regenie_file = os.path.join(args.tmp_dir, f"{args.basename}_{pheno}.regenie") #default regenie output
+    out_file = os.path.join(args.out_dir, f"{args.basename}_{pheno}_{locus}_{step}.conditional") #file where to redirect output
     pretty_print(f"VARIANT:{condition_list[-1]}")
     logging.info(f"generating {out_file} ...")
- 
+
     if not os.path.isfile(out_file) or args.force:
         args.force = True
 
         #build pred
-        pred_file = out_root + f"_{args.pheno}.pred"
+        pred_file = os.path.join(args.tmp_dir, f"{args.basename}_{args.pheno}.pred")                            
         with open(pred_file,'wt') as o: o.write(f"{pheno}\t{null_file}")
    
         # build condition file
-        tmp_variant = out_root + '.variant.tmp'
+        tmp_variant = os.path.join(args.tmp_dir, f"{args.basename}_variant.tmp")
         with open(tmp_variant,'wt') as o:
             for variant in condition_list:
                 o.write(variant + '\n')
@@ -54,7 +57,7 @@ def regenie_run(out_root,step,bgen,sample_file,pheno_file,covariates,condition_l
         # add sample file if passed
         sample_cmd = f" --sample {sample_file}"  if os.path.isfile(sample_file)  else ""
         
-        cmd = f'{regenie_cmd} --step 2   {params} --bgen {bgen}  {sample_cmd} --out {out_root}  --pred {pred_file} --phenoFile {pheno_file} --phenoCol {pheno} --condition-list {tmp_variant} {region}  --covarFile {pheno_file} --covarColList {covariates} --threads {multiprocessing.cpu_count()}'
+        cmd = f'{regenie_cmd} --step 2   {params} --bgen {bgen}  {sample_cmd} --out {os.path.join(args.tmp_dir,args.basename)}  --pred {pred_file} --phenoFile {pheno_file} --phenoCol {pheno} --condition-list {tmp_variant} {region}  --covarFile {pheno_file} --covarColList {covariates} --threads {multiprocessing.cpu_count()}'
         logging.debug(cmd)
         logmode = 'wt' if step == 0 else 'a'
         with open(log_file,logmode) as o:
@@ -62,7 +65,6 @@ def regenie_run(out_root,step,bgen,sample_file,pheno_file,covariates,condition_l
 
         #spring cleaning if run is successful
         if not ret:
-            for f in [pred_file,tmp_variant,out_root + '.log',pheno_file] : os.remove(f)
             os.replace(regenie_file,out_file)
 
     else:
@@ -145,7 +147,7 @@ def main(locus,region,args,tmp_pheno_file,sum_dict):
         step,condition_list = 1,[locus]
         # step is non 0 if hit is significant. Else truncate when max step is reached 
         while 0 <  step <= args.max_steps:
-            out_file,ret = regenie_run(args.out,step,args.bgen,args.sample_file,tmp_pheno_file,args.covariates,condition_list,locus,args.null_file,args.pheno,region,log_file,params = args.regenie_params)
+            out_file,ret = regenie_run(args,step,args.bgen,args.sample_file,tmp_pheno_file,args.covariates,condition_list,locus,args.null_file,args.pheno,region,log_file,params = args.regenie_params)
             if ret:
                 logging.error(f"RUN FAILED,check {log_file} for errors.")
                 return
@@ -196,7 +198,12 @@ if __name__ == '__main__':
     range_group.add_argument('--locus_list',type = file_exists,help="File with list of locus and regions")
 
     args = parser.parse_args()
-    make_sure_path_exists(os.path.dirname(args.out))
+    
+
+    args.out_dir,args.basename = os.path.dirname(args.out),os.path.basename(args.out)
+    args.tmp_dir = os.path.join(args.out_dir,'tmp')
+    make_sure_path_exists(args.out_dir)
+    make_sure_path_exists(args.tmp_dir)
 
     # logging level
     level = log_levels[args.log]
@@ -214,7 +221,7 @@ if __name__ == '__main__':
     pretty_print(f"MLOGP THRESHOLD: {args.pval_threshold}")
     
     # gets original sumstats data for variants
-    pval_dict_file = os.path.join(os.path.dirname(args.out),f"{args.pheno}_pvals.json")
+    pval_dict_file = os.path.join(args.tmp_dir,f"{args.pheno}_pvals.json")
     columns= [args.chr_col,args.pos_col,args.mlogp_col,args.ref_col,args.alt_col,args.beta_col,args.sebeta_col]
     sum_dict = parse_sumstat_data(args.sumstats,pval_dict_file,columns)
 
