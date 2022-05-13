@@ -5,7 +5,7 @@ workflow conditional_analysis {
   input {
     String docker
     File phenos_to_cond
-    String prefix
+    String release
     
     String mlogp_col
     String chr_col
@@ -21,6 +21,7 @@ workflow conditional_analysis {
 
   }
 
+  String prefix = "finngen_R" + release
   # returns covariate string for each pheno
   call filter_covariates {input: docker=docker,pheno_file=pheno_file,pheno_list = phenos_to_cond,covariates=covariates}  
   Array[String] pheno_data = read_lines(phenos_to_cond)
@@ -31,8 +32,8 @@ workflow conditional_analysis {
       input: pheno=p, mlogp_threshold = locus_mlogp_threshold, docker=docker,mlogp_col = mlogp_col,chr_col=chr_col,pos_col = pos_col,ref_col=ref_col,alt_col=alt_col,chroms=chroms,sumstats_root=sumstats_root
     }
    }
-   call merge_regions {input: docker =docker,hits=extract_cond_regions.gw_sig_res}
 
+   # takes all globbed chrom/pheno hit list into a single array to loop over so that each file is the same phenotype and a list of hits from the same chrom, requiring thus to localize only one bgen per instance
    Array[File] cond_regions = flatten(extract_cond_regions.pheno_chrom_regions)
    Map[String,String] cov_map = read_map(filter_covariates.cov_pheno_map)
 
@@ -49,10 +50,73 @@ workflow conditional_analysis {
 
    Array[File] results = flatten(regenie_conditional.conditional_chains)
    call merge_results{input:docker=docker,prefix=prefix,result_list = results,phenos_list = phenos_to_cond}
-   
+
+   #merges all regions into single file
+   call merge_regions {input: docker =docker,hits=extract_cond_regions.gw_sig_res}
+   call pheweb_import_munge{input:docker=docker,release=release,cond_locus_hits=results,regions=merge_regions.regions}
 }
  
+task pheweb_import_munge{
+  input {
+    String release
+    File regions
+    Array[File] cond_locus_hits
+    String docker
+  }
+  
+  String out_file = "finngen_R" + release + "_sql.merged.txt"
+  command <<<
 
+    python3 <<CODE
+    import os,sys
+    
+    release = '~{release}'
+    out_dir = "."
+    region_file = '~{regions}'
+    hits = '~{write_lines(cond_locus_hits)}'
+
+    out_file = os.path.join(out_dir,f"finngen_R{release}_sql.merged.txt")
+    #reads in all paths
+    with open(hits) as f:hits_paths = [elem.strip() for elem in f.readlines()]
+    #loop over region data, find matching file(s), merge info and build sql table
+    with open(region_file) as f,open(out_file,'wt') as o:
+        count = 0
+        for line in f:
+            pheno,chrom,region,locus,*_ = line.strip().split()
+            id_string = f"{pheno}_{locus}"
+            matches =[path for path in hits_paths if id_string in path]
+            if matches:
+                assert len(matches)==1
+                count +=1
+                sys.stdout.write("\r%s" % f"{pheno} {count}/{len(hits_paths)}                                                  ")
+                sys.stdout.flush()
+                hit_file = matches[0]
+                file_root = os.path.basename(hit_file).split("chr")[0]
+                start,end=region.split(':')[1].split("-")
+                with open(hit_file) as i: variants = [elem.strip().split()[0] for elem in i][1:]
+                out_data = [release,"conditional",pheno,chrom,start,end,len(variants),"",','.join(variants),file_root]
+                o.write(','.join([f'"{elem}"' for elem in out_data])+'\n')
+   
+    CODE
+  >>>
+
+  
+  output {
+    File csv_sql = out_file
+  }
+  
+  runtime {
+    cpu: "4"
+    docker: "${docker}"
+    memory: "4 GB"
+    disks: "local-disk 10 HDD"
+    zones: "europe-west1-b europe-west1-c europe-west1-d"
+    preemptible: "1"
+      
+  }
+  
+
+}
 task merge_results {
 
   input {
@@ -96,9 +160,7 @@ task merge_results {
     preemptible: "1"
   
   }
-  
-
-  
+   
 }
 
 
@@ -192,12 +254,12 @@ task filter_covariates {
     Int disk_size = ceil(size(pheno_file,'GB')) + 2
     
     command <<<
-
+      
       python3 <<CODE
-
+      
       import pandas as pd
       import numpy as np
-
+      
       #read in phenos as list of phenos regardless
       tot_phenos = []
       phenos_groups = []
