@@ -52,8 +52,9 @@ workflow conditional_analysis {
    call merge_results{input:docker=docker,prefix=prefix,result_list = results,phenos_list = phenos_to_cond}
 
    #merges all regions into single file
+   Array[File] regenie_outputs = flatten(regenie_conditional.regenie_output)
    call merge_regions {input: docker =docker,hits=extract_cond_regions.gw_sig_res}
-   call pheweb_import_munge{input:docker=docker,release=release,cond_locus_hits=results,regions=merge_regions.regions}
+   call pheweb_import_munge{input:docker=docker,release=release,cond_locus_hits=results,regions=merge_regions.regions,regenie_outputs=regenie_outputs}
 }
  
 task pheweb_import_munge{
@@ -62,13 +63,14 @@ task pheweb_import_munge{
     File regions
     Array[File] cond_locus_hits
     String docker
+    Array[File] regenie_outputs
   }
   
   String out_file = "finngen_R" + release + "_sql.merged.txt"
   command <<<
 
     python3 <<CODE
-    import os,sys
+    import os,sys,math
     
     release = '~{release}'
     out_dir = "."
@@ -96,13 +98,40 @@ task pheweb_import_munge{
                 with open(hit_file) as i: variants = [elem.strip().split()[0] for elem in i][1:]
                 out_data = [release,"conditional",pheno,chrom,start,end,len(variants),"",','.join(variants),file_root]
                 o.write(','.join([f'"{elem}"' for elem in out_data])+'\n')
-   
-    CODE
-  >>>
 
-  
+
+    #fixing columns of regenie outputs
+    inputs = '~{write_lines(regenie_outputs)}'
+    separator = " "
+    input_columns = ['CHROM', 'GENPOS', 'ID', 'ALLELE0', 'ALLELE1', 'A1FREQ', 'INFO', 'N', 'TEST', 'BETA', 'SE', 'CHISQ', 'LOG10P', 'EXTRA']
+    out_columns = ['SNPID','CHR','rsid','POS','Allele1','Allele2','AF_Allele2','p.value_cond','BETA_cond','SE_cond']
+    map_columns = {"SNPID":"ID","CHR":"CHROM","rsid":"ID","POS":"GENPOS","Allele1":"ALLELE0","Allele2":"ALLELE1","AF_Allele2":"A1FREQ","p.value_cond":"LOG10P","BETA_cond":'BETA','SE_cond':'SE'}
+    with open(inputs) as f:paths = [elem.strip() for elem in f.readlines()]
+    n_paths = len(paths)
+    for i,path in enumerate(paths):
+        sys.stdout.write("\r%s" % f"{path} {i+1}/{n_paths}                                                  ")
+        sys.stdout.flush()
+        out_file = os.path.join(out_dir,os.path.basename(path))
+        with open(path) as i,open(out_file,'wt') as o:
+            header_index = {h:i for i,h in enumerate(next(i).strip().split(separator))}
+            o.write(separator.join(out_columns) +'\n')
+            for line in i:
+                line = line.strip().split(separator)
+                out_line = []
+                for key in out_columns:
+                    #i take the column mapping and then i get the data from the input header mapping in return
+                    data_index = header_index[map_columns[key]]
+                    value = str(line[data_index])                    #get data from input 
+                    if key =="p.value_cond":value =  math.pow(10,-float(value)) #fix pval
+                    out_line.append(value)
+
+                o.write(separator.join(map(str,out_line)) +'\n')
+    CODE
+    ls
+  >>>
   output {
     File csv_sql = out_file
+    Array[File] munged_regenie = glob("./finngen*conditional")    
   }
   
   runtime {
@@ -224,7 +253,7 @@ task regenie_conditional {
   output {
     Array[File] conditional_chains = glob("./${prefix}*.snps")
     Array[File] logs = glob("./${prefix}*.log")
-    Array[File] regenie_logs = glob("./${prefix}*.conditional")    
+    Array[File] regenie_output = glob("./${prefix}*.conditional")    
   }
   
   runtime {
