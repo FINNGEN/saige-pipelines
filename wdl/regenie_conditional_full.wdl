@@ -33,18 +33,22 @@ workflow conditional_analysis {
     }
    }
 
-   # takes all globbed chrom/pheno hit list into a single array to loop over so that each file is the same phenotype and a list of hits from the same chrom, requiring thus to localize only one bgen per instance
-   Array[File] cond_regions = flatten(extract_cond_regions.pheno_chrom_regions)
+   # PHENO/CHROM COMBO VERSION
+   #Array[File] cond_regions = flatten(extract_cond_regions.pheno_chrom_regions)
+   
+   #SINGLE JOB PER LOCUS VERSION
+   call merge_regions {input: docker =docker,hits=extract_cond_regions.gw_sig_res}
+
    Map[String,String] cov_map = read_map(filter_covariates.cov_pheno_map)
-
-   # loop over pheno/chrom regions
-   scatter (region in cond_regions) {
-     Array[Array[String]] data = read_tsv(region)
-     String pheno = data[0][0]
-     String chrom = data[0][1]
-
+   Array[Array[String]] all_regions = read_tsv(merge_regions.regions)
+   
+   # loop over all regions running one variant per shard
+   scatter (region in all_regions) {
+     String pheno = region[0]
+     String chrom = region[1]
+     String locus_region = region[2] + " " + region[3]
     call regenie_conditional {
-       input: docker = docker, prefix=prefix,locus_list=region,pheno=pheno,chrom=chrom,covariates = cov_map[pheno],mlogp_col = mlogp_col,chr_col=chr_col,pos_col = pos_col,ref_col=ref_col,alt_col=alt_col,pval_threshold=conditioning_mlogp_threshold,sumstats_root=sumstats_root
+       input: docker = docker, prefix=prefix,locus_region=locus_region,pheno=pheno,chrom=chrom,covariates = cov_map[pheno],mlogp_col = mlogp_col,chr_col=chr_col,pos_col = pos_col,ref_col=ref_col,alt_col=alt_col,pval_threshold=conditioning_mlogp_threshold,sumstats_root=sumstats_root
      }    
    }
 
@@ -53,7 +57,6 @@ workflow conditional_analysis {
 
    #merges all regions into single file
    Array[File] regenie_outputs = flatten(regenie_conditional.regenie_output)
-   call merge_regions {input: docker =docker,hits=extract_cond_regions.gw_sig_res}
    call pheweb_import_munge{input:docker=docker,release=release,cond_locus_hits=results,regions=merge_regions.regions,regenie_outputs=regenie_outputs}
 }
  
@@ -201,7 +204,7 @@ task regenie_conditional {
     String docker
     String prefix
     # hit info
-    File locus_list
+    String locus_region
     String pheno
     String chrom
     # files to localize 
@@ -231,21 +234,20 @@ task regenie_conditional {
   File bgen = sub(bgen_root,'CHROM',chrom)
   File bgen_sample = bgen + ".sample"
   # runtime params based on file sizes
-  Int disk_size = ceil(size(bgen,'GB')) + ceil(size(sumstats,'GB')) + ceil(size(null,'GB')) + ceil(size(pheno_file,'GB')) + 10
+  Int disk_size = ceil(size(bgen,'GB')) + ceil(size(sumstats,'GB')) + ceil(size(null,'GB')) + ceil(size(pheno_file,'GB')) + 1
   String final_docker = if defined(regenie_docker) then regenie_docker else docker
 
-  Int cpus = 3*length(read_lines(locus_list))
+  Int cpus = 4
 
   command <<<
     
     echo ~{pheno} ~{chrom} ~{cpus} 
-    cut -f 3,4 ~{locus_list} > locus_list.txt
     tabix -h ~{sumstats}  ~{chrom} > region_sumstats.txt
     
     python3 /scripts/regenie_conditional.py \
     --out ./~{prefix}  --bgen ~{bgen}  --null-file ~{null}  --sumstats region_sumstats.txt \
     --pheno-file ~{pheno_file} --pheno ~{pheno} \
-    --locus_list locus_list.txt  --pval-threshold ~{pval_threshold} --max-steps ~{max_steps} \
+    --locus_region ~{locus_region}  --pval-threshold ~{pval_threshold} --max-steps ~{max_steps} \
     --chr-col ~{chr_col} --pos-col ~{pos_col} --ref-col ~{ref_col} --alt-col ~{alt_col} --mlogp-col ~{mlogp_col} --beta-col ~{beta} --sebeta-col ~{sebeta} \
     --covariates ~{covariates} ~{if defined(regenie_params) then " --regenie-params " + regenie_params else ""} --log info
 
