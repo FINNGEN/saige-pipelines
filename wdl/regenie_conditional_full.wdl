@@ -225,6 +225,7 @@ task regenie_conditional {
     Int max_steps
     String covariates
     String? regenie_params
+    Int cpus
   }
 
   # localize all files based on roots and pheno/chrom info
@@ -233,21 +234,22 @@ task regenie_conditional {
   File null =sub(null_root,"PHENO",pheno)
   File bgen = sub(bgen_root,'CHROM',chrom)
   File bgen_sample = bgen + ".sample"
+  File bgen_index = bgen + ".bgi"
+
   # runtime params based on file sizes
   Int disk_size = ceil(size(bgen,'GB')) + ceil(size(sumstats,'GB')) + ceil(size(null,'GB')) + ceil(size(pheno_file,'GB')) + 1
   String final_docker = if defined(regenie_docker) then regenie_docker else docker
 
-  Int cpus = 4
 
   command <<<
     
     echo ~{pheno} ~{chrom} ~{cpus} 
     tabix -h ~{sumstats}  ~{chrom} > region_sumstats.txt
-    
+
     python3 /scripts/regenie_conditional.py \
     --out ./~{prefix}  --bgen ~{bgen}  --null-file ~{null}  --sumstats region_sumstats.txt \
     --pheno-file ~{pheno_file} --pheno ~{pheno} \
-    --locus_region ~{locus_region}  --pval-threshold ~{pval_threshold} --max-steps ~{max_steps} \
+    --locus-region ~{locus_region}  --pval-threshold ~{pval_threshold} --max-steps ~{max_steps} \
     --chr-col ~{chr_col} --pos-col ~{pos_col} --ref-col ~{ref_col} --alt-col ~{alt_col} --mlogp-col ~{mlogp_col} --beta-col ~{beta} --sebeta-col ~{sebeta} \
     --covariates ~{covariates} ~{if defined(regenie_params) then " --regenie-params " + regenie_params else ""} --log info
 

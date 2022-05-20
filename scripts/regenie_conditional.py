@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import argparse,os.path,shlex,subprocess,sys,subprocess,shlex,json,logging,multiprocessing
+import argparse,os.path,shlex,subprocess,sys,subprocess,shlex,json,logging,multiprocessing,time
 import numpy as np
 from utils import file_exists,make_sure_path_exists,tmp_bash,pretty_print,return_open_func,log_levels,basic_iterator,return_header,check_region
 from pathlib import Path
@@ -12,8 +12,6 @@ regenie_covariates= "SEX_IMPUTED,AGE_AT_DEATH_OR_END_OF_FOLLOWUP,PC1,PC2,PC3,PC4
 sub_dict =  {str(elem):str(elem) for elem in range(1,23)}
 sub_dict.update({"X":"23"})
 inv_sub_dict = {v: k for k, v in sub_dict.items()}
-
-    
 
 def filter_pheno(args):
     """
@@ -30,7 +28,7 @@ def filter_pheno(args):
         print('done.')
     return tmp_pheno
 
-def regenie_run(args,step,bgen,sample_file,pheno_file,covariates,condition_list,locus,null_file,pheno,region,log_file,regenie_cmd = "regenie",params = ' ',):
+def regenie_run(args,step,bgen,sample_file,pheno_file,covariates,condition_list,locus,null_file,pheno,region,log_file,threads,regenie_cmd = "regenie",params = ' ',):
     """
     Single regenie conditainal run. 
     Returns file with results after doing some renaming.
@@ -57,12 +55,14 @@ def regenie_run(args,step,bgen,sample_file,pheno_file,covariates,condition_list,
         # add sample file if passed
         sample_cmd = f" --sample {sample_file}"  if os.path.isfile(sample_file)  else ""
         
-        cmd = f'{regenie_cmd} --step 2   {params} --bgen {bgen}  {sample_cmd} --out {os.path.join(args.tmp_dir,args.basename)}  --pred {pred_file} --phenoFile {pheno_file} --phenoCol {pheno} --condition-list {tmp_variant} {region}  --covarFile {pheno_file} --covarColList {covariates} --threads {multiprocessing.cpu_count()}'
+        cmd = f'{regenie_cmd} --step 2   {params} --bgen {bgen}  {sample_cmd} --out {os.path.join(args.tmp_dir,args.basename)}  --pred {pred_file} --phenoFile {pheno_file} --phenoCol {pheno} --condition-list {tmp_variant} {region}  --covarFile {pheno_file} --covarColList {covariates} --threads {threads}'
         logging.debug(cmd)
         logmode = 'wt' if step == 0 else 'a'
         with open(log_file,logmode) as o:
+            start = time.time()
             ret = subprocess.call(shlex.split(cmd),stdout=o)
-
+            logging.info(f"Script ran in {time.time() - start} seconds with {threads} cpus.")
+            
         #spring cleaning if run is successful
         if not ret:
             os.replace(regenie_file,out_file)
@@ -70,6 +70,7 @@ def regenie_run(args,step,bgen,sample_file,pheno_file,covariates,condition_list,
     else:
         logging.info('file already exists')
         ret = 0
+
         
     return out_file,ret
 
@@ -128,7 +129,7 @@ def get_sum_dict_data(sum_dict,variant):
     keys =  ["beta","sebeta","mlogp"]
     return [sum_dict[variant][elem] for elem in keys]
 
-def main(locus,region,args,tmp_pheno_file,sum_dict):
+def main(locus,region,args,tmp_pheno_file,sum_dict,threads):
 
     pretty_print(f"{locus} {region} conditional chain.",50)
     #define log_file
@@ -147,7 +148,7 @@ def main(locus,region,args,tmp_pheno_file,sum_dict):
         step,condition_list = 1,[locus]
         # step is non 0 if hit is significant. Else truncate when max step is reached 
         while 0 <  step <= args.max_steps:
-            out_file,ret = regenie_run(args,step,args.bgen,args.sample_file,tmp_pheno_file,args.covariates,condition_list,locus,args.null_file,args.pheno,region,log_file,params = args.regenie_params)
+            out_file,ret = regenie_run(args,step,args.bgen,args.sample_file,tmp_pheno_file,args.covariates,condition_list,locus,args.null_file,args.pheno,region,log_file,threads,params = args.regenie_params)
             if ret:
                 logging.error(f"RUN FAILED,check {log_file} for errors.")
                 return
@@ -191,11 +192,12 @@ if __name__ == '__main__':
     parser.add_argument('--mlogp_col','--mlogp-col', default="mlogp", type=str)
     parser.add_argument('--beta_col','--beta-col', default="beta", type=str)
     parser.add_argument('--sebeta_col','--sebeta-col', default="sebeta", type=str)
-    
+    parser.add_argument('--threads',type = int,help ='Number of threads.',default =  multiprocessing.cpu_count())
+
 
     range_group = parser.add_mutually_exclusive_group(required=True)
-    range_group.add_argument('--locus_region',type =str,nargs=2,help ='Locus & Region to filter CHR:START-END')
-    range_group.add_argument('--locus_list',type = file_exists,help="File with list of locus and regions")
+    range_group.add_argument('--locus-region',type =str,nargs=2,help ='Locus & Region to filter CHR:START-END')
+    range_group.add_argument('--locus-list',type = file_exists,help="File with list of locus and regions")
 
     args = parser.parse_args()
     
@@ -234,11 +236,12 @@ if __name__ == '__main__':
                 region_list.append(check_region(*line.strip().split()))
 
     logging.info(region_list)
-    
+    logging.info(f"Using {args.threads} cpus for the regenie run.")
+
     # create tmp pheno file (lighter)
     tmp_pheno_file = filter_pheno(args)
     for locus,region in region_list:
-        main(locus,region,args,tmp_pheno_file,sum_dict)
+        main(locus,region,args,tmp_pheno_file,sum_dict,args.threads)
                 
     
     

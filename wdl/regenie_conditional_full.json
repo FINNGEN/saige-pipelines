@@ -12,7 +12,7 @@
     
     #GLOBAL
     "conditional_analysis.locus_mlogp_threshold": 7.3,
-    "conditional_analysis.conditioning_mlogp_threshold": 5,
+    "conditional_analysis.conditioning_mlogp_threshold": 6,
     "conditional_analysis.mlogp_col": "mlogp",
     "conditional_analysis.chr_col": " '#chrom' ",
     "conditional_analysis.pos_col": "pos",
@@ -27,6 +27,7 @@
     "conditional_analysis.regenie_conditional.beta": "sebeta",
     "conditional_analysis.regenie_conditional.max_steps": 10,
     "conditional_analysis.regenie_conditional.regenie_params": " ' --bt --bsize 200 --ref-first ' ",
+    "conditional_analysis.regenie_conditional.cpus": 4,
 
 
     #CONDITIONAL REGIONS
@@ -41,7 +42,7 @@
 
 
     #DOCKERS
-    "conditional_analysis.docker": "eu.gcr.io/finngen-refinery-dev/conditional_analysis:r9.1 ",
-    "conditional_analysis.regenie_conditional.regenie_docker": "eu.gcr.io/finngen-refinery-dev/conditional_analysis:r9.2 ",
+    "conditional_analysis.docker": "eu.gcr.io/finngen-refinery-dev/conditional_analysis:r9.4 ",
+    #"conditional_analysis.regenie_conditional.regenie_docker": "eu.gcr.io/finngen-refinery-dev/conditional_analysis:r9.2 ",
 
 }
