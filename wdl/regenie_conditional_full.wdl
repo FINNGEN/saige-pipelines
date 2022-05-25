@@ -236,6 +236,7 @@ task regenie_conditional {
   File bgen_sample = bgen + ".sample"
   File bgen_index = bgen + ".bgi"
 
+
   # runtime params based on file sizes
   Int disk_size = ceil(size(bgen,'GB')) + ceil(size(sumstats,'GB')) + ceil(size(null,'GB')) + ceil(size(pheno_file,'GB')) + 1
   String final_docker = if defined(regenie_docker) then regenie_docker else docker

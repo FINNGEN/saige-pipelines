@@ -1,11 +1,11 @@
 {
-    
-    #"conditional_analysis.phenos_to_cond": "gs://r9_data/pheno/R9_analysis_endpoints_with_quants.txt",
+        
+    #"conditional_analysis.phenos_to_cond": "gs://r9_data/conditional_analysis/tmp_phenos.txt",
+    #"conditional_analysis.chroms": [ "1","5","19", "23"], 
     #"conditional_analysis.phenos_to_cond": "gs://r9_data/conditional_analysis/demo_phenos.txt",
-    #"conditional_analysis.chroms": [ "20","21", "23"], 
-
-    "conditional_analysis.phenos_to_cond": "gs://r9_data/conditional_analysis/tmp_phenos.txt",
-    "conditional_analysis.chroms": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22"],  
+    
+    "conditional_analysis.phenos_to_cond": "gs://r9_data/pheno/R9_analysis_endpoints_with_quants.txt",
+    "conditional_analysis.chroms": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22","23"],  
 
     "conditional_analysis.release": "9",
     "conditional_analysis.sumstats_root": "gs://r9_data/regenie/release/output/summary_stats/PHENO.gz", 
