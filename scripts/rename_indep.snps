@@ -1,3 +1,0 @@
-## Use this example if running with old pipeline which gives the same name for all .independent.snps files for a phenotype.
-## oh lord what a bioinformatician can get into
-gsutil ls gs://fg-cromwell-2/conditional_analysis/842c894b-f501-4243-aba7-665b95eacec8/call-condition/**/independent.snps | while read f; do snp=`gsutil cat $f | cut -f 1| tail -n +2 | head -n 1`; newname=`basename $f`; gsutil cp $f gs://r4_data/conditional/demo/${newname%%independent.snps}$snp".independent.snps"&  done

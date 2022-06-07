@@ -1,0 +1,47 @@
+{
+        
+    "conditional_analysis.phenos_to_cond": "gs://r9_data/conditional_analysis/tmp_phenos.txt",
+    "conditional_analysis.chroms": [ "1","5","19", "23"], 
+    #"conditional_analysis.phenos_to_cond": "gs://r9_data/conditional_analysis/demo_phenos.txt",
+    
+    #"conditional_analysis.phenos_to_cond": "gs://r9_data/pheno/R9_analysis_endpoints_with_quants.txt",
+    #"conditional_analysis.chroms": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22","23"],  
+
+    "conditional_analysis.release": "9",
+    "conditional_analysis.sumstats_root": "gs://r9_data/regenie/release/output/summary_stats/PHENO.gz", 
+    "conditional_analysis.pheno_file": "gs://r9_data/pheno/R9_COV_PHENO_V1.FID.txt.gz",
+
+    #GLOBAL
+    "conditional_analysis.locus_mlogp_threshold": 7.3,
+    "conditional_analysis.conditioning_mlogp_threshold": 6,
+    "conditional_analysis.mlogp_col": "mlogp",
+    "conditional_analysis.chr_col": " '#chrom' ",
+    "conditional_analysis.pos_col": "pos",
+    "conditional_analysis.ref_col": "ref",
+    "conditional_analysis.alt_col": "alt",
+    
+    #REGENIE
+    "conditional_analysis.regenie_conditional.bgen_root": "gs://r9_data/conditional_analysis/bgen/finngen_R9_annotated_CHROM.bgen",
+    "conditional_analysis.regenie_conditional.null_root": "gs://r9_data/regenie/release/output/nulls/R9_GRM_V1_LD_0.1.PHENO.loco.gz",
+    "conditional_analysis.regenie_conditional.sebeta": "beta",
+    "conditional_analysis.regenie_conditional.beta": "sebeta",
+    "conditional_analysis.regenie_conditional.max_steps": 10,
+    "conditional_analysis.regenie_conditional.regenie_params": " ' --bt --bsize 200 --ref-first ' ",
+    "conditional_analysis.regenie_conditional.cpus": 4,
+
+
+    #CONDITIONAL REGIONS
+    "conditional_analysis.extract_cond_regions.region_root": "gs://r9_data/finemap/release/regions/PHENO.bed",
+
+
+    # FILTER COV/PHENO
+    "conditional_analysis.filter_covariates.threshold_cov_count": 10,
+
+    "conditional_analysis.covariates": ["PC1", "PC2", "PC3", "PC4", "PC5", "PC6", "PC7", "PC8", "PC9", "PC10", "SEX_IMPUTED", "AGE_AT_DEATH_OR_END_OF_FOLLOWUP", "IS_FINNGEN2_CHIP", "BATCH_DS1_BOTNIA_Dgi_norm", "BATCH_DS10_FINRISK_Palotie_norm", "BATCH_DS11_FINRISK_PredictCVD_COROGENE_Tarto_norm", "BATCH_DS12_FINRISK_Summit_norm", "BATCH_DS13_FINRISK_Bf_norm", "BATCH_DS14_GENERISK_norm", "BATCH_DS15_H2000_Broad_norm", "BATCH_DS16_H2000_Fimm_norm", "BATCH_DS17_H2000_Genmets_norm", "BATCH_DS18_MIGRAINE_1_norm", "BATCH_DS19_MIGRAINE_2_norm", "BATCH_DS2_BOTNIA_T2dgo_norm", "BATCH_DS20_SUPER_1_norm", "BATCH_DS21_SUPER_2_norm", "BATCH_DS22_TWINS_1_norm", "BATCH_DS23_TWINS_2_norm", "BATCH_DS24_SUPER_3_norm", "BATCH_DS25_BOTNIA_Regeneron_norm", "BATCH_DS3_COROGENE_Sanger_norm", "BATCH_DS4_FINRISK_Corogene_norm", "BATCH_DS5_FINRISK_Engage_norm", "BATCH_DS6_FINRISK_FR02_Broad_norm", "BATCH_DS7_FINRISK_FR12_norm", "BATCH_DS8_FINRISK_Finpcga_norm", "BATCH_DS9_FINRISK_Mrpred_norm"],
+
+
+    #DOCKERS
+    "conditional_analysis.docker": "eu.gcr.io/finngen-refinery-dev/conditional_analysis:r9.4 ",
+    #"conditional_analysis.regenie_conditional.regenie_docker": "eu.gcr.io/finngen-refinery-dev/conditional_analysis:r9.2 ",
+
+}
