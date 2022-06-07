@@ -47,7 +47,9 @@ optional arguments:
 
 They are all quite self explanatory. By default all cpus are used and the logging level is set to `warning`. 
 
-The null files are the `*loco.gz` outputs of regenie step 1. The last two inputs are mutually exclusive and are meant for defining the regions of choice. The vanilla mode runs just one region/locus (in any order and in regenie format, e.g. `6:34869517-37869517 chr6_35376598_G_A`). The script will automatically recognize which is the locus and which the region. Else one can pass a file with a tsv separated list of regions/locuses, one per line. The script will then run the main function for each region/locus.
+The null files are the `*loco.gz` outputs of regenie step 1.
+
+The last two inputs are mutually exclusive and are meant for defining the regions of choice. The vanilla mode runs just one region/locus (in any order and in regenie format, e.g. `6:34869517-37869517 chr6_35376598_G_A`). The script will automatically recognize which is the locus and which the region. Else one can pass a file with a tsv separated list of regions/locuses, one per line. The script will then run the main function for each region/locus.
 
 Each run will iteratively condition on more and more significant variants until no hits are found under a certain threshold (`pval-threshold`, either a mlogp > 1 or a pval <1, it gets converted to mglop anyways). One can also choose to cap the iterations at a certain thershold (`max-steps`) instead. 
 
@@ -84,10 +86,10 @@ Global inputs:
 "conditional_analysis.ref_col": "ref",
 "conditional_analysis.alt_col": "alt",
  ``` 
- `phenos_to cond` and `chroms` determine what phenos and what chrom regions are run. This can be handy to run shorter/test runs. 
- `pheno_file` is the file that contains all pheno related data. It has to have the FID column and contain the covariates.
- `release` is added as a suffix to all pipeline outputs
- `sumstats_root` is the standard regenie output of Finngen from which the top hits are chosen. The following list of header inputs (`mlogp_col`,`chr_col` etc) have to match the content of the sumstats files. 
+ `phenos_to cond` and `chroms` determine what phenos and what chrom regions are run. This can be handy to run shorter/test runs.  
+ `pheno_file` is the file that contains all pheno related data. It has to have the FID column and contain the covariates.  
+ `release` is added as a suffix to all pipeline outputs.  
+ `sumstats_root` is the standard regenie output of Finngen from which the top hits are chosen. The following list of header inputs (`mlogp_col`,`chr_col` etc) have to match the content of the sumstats files.   
  
  `locus_mlogp_threshold` determines the threshold for choosing the starting locuses (extracted from sumstats).
  `conditioning_mlogp_threshold` instead is the parameter used to stop the regenie chain conditional run.
