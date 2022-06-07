@@ -45,7 +45,7 @@ workflow conditional_analysis {
      String chrom = region[1]
      String locus_region = region[2] + " " + region[3]
     call regenie_conditional {
-       input: docker = docker, prefix=prefix,locus_region=locus_region,pheno=pheno,chrom=chrom,covariates = cov_map[pheno],mlogp_col = mlogp_col,chr_col=chr_col,pos_col = pos_col,ref_col=ref_col,alt_col=alt_col,pval_threshold=conditioning_mlogp_threshold,sumstats_root=sumstats_root
+       input: docker = docker, prefix=prefix,locus_region=locus_region,pheno=pheno,chrom=chrom,covariates = cov_map[pheno],mlogp_col = mlogp_col,chr_col=chr_col,pos_col = pos_col,ref_col=ref_col,alt_col=alt_col,pval_threshold=conditioning_mlogp_threshold,sumstats_root=sumstats_root,pheno_file=pheno_file
      }    
    }
 
