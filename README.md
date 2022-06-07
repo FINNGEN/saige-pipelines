@@ -127,12 +127,12 @@ This is the major task where the magic happens. For reference, the shards will t
     "conditional_analysis.regenie_conditional.cpus": 4,
 
 ```
-`bgen_root` is the path to the bgens, where a `.bgen.sample` is expected to be found as well!
-`null_root` are the step1 outputs
-`beta` and `se_beta` are the column names for the entries in the sumstat file.
-`max_steps` controls the maximum length of the chain
-`regenie_params` are all the other flags to be passed to regenie
-`cpus` is self explanatory.
+`bgen_root` is the path to the bgens, where a `.bgen.sample` is expected to be found as well!  
+`null_root` are the step1 outputs.  
+`beta` and `se_beta` are the column names for the entries in the sumstat file.  
+`max_steps` controls the maximum length of the chain.  
+`regenie_params` are all the other flags to be passed to regenie.  
+`cpus` is self explanatory.  
 
 ## BGEN CONVERSION
 
