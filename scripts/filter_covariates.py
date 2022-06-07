@@ -25,6 +25,7 @@ def read_cov_df(pheno_file,covariates=covariates.split(','),test=True):
 def return_df_count(cov_df,pheno_df):
     df = pd.DataFrame()
     columns = len(pheno_df.columns)
+    # for each pheno i multply the cov data with the pheno data to get a PHENO x COV df where each entry is the count of non 0 elements in the sample-levl product. This step needs to be done regardless so i can then proceed with all the logic of filtering.
     for i,pheno in enumerate(pheno_df.columns):
         progressBar(i,columns)
         m = (cov_df.mul(pheno_df[pheno],0)>0).sum().to_frame(pheno)
@@ -47,6 +48,7 @@ def main(args):
 
 
     outfile = os.path.join(args.out,"COV_PHENO_COUNTS.txt")
+    # here i read in pheno and cov data and merge them into a single df where i calculate the product between the two
     if not os.path.isfile(outfile) or args.force:
         pheno_df = read_pheno_df(args.pheno_file,tot_phenos,args.test)
         # get cov data
@@ -61,15 +63,18 @@ def main(args):
 
     print(df.head())
     outfile = os.path.join(args.out,f"pheno_covariates_{args.threshold_count}.txt")
+    print(f"Dumping results to {outfile}")
     with open(outfile,'wt') as o,open(outfile.replace('.txt','.err.txt'),'wt') as tmp_err:
         for pheno_list in phenos_groups:
             pheno_name = ','.join(pheno_list)
-            # return minimim value across list of phenos
+            # return minimim value across list of phenos for each covariates
             tmp_df = df[pheno_list].min(axis =1)
+            # filter out covariates that do not meet threshold count
             covs = tmp_df.index[tmp_df >= args.threshold_count].tolist()
+            o.write(f"{pheno_name}\t{','.join(covs)}\n")
+            # log rejected covars
             missing_covs = [elem for elem in args.covariates if elem not in covs]
             if missing_covs:tmp_err.write(f"{pheno_name}\t{'.'.join(missing_covs)}\n")
-            o.write(f"{pheno_name}\t{','.join(covs)}\n")
             
 if __name__ == '__main__':
     
@@ -77,13 +82,14 @@ if __name__ == '__main__':
     parser.add_argument('--pheno-file',type = file_exists,help ='Path to pheno file',required=True)
     parser.add_argument('--covariates',type = str,default = covariates,help='List of covariates')
     parser.add_argument('--pheno-list',type = file_exists,help ='File with list of phenos',required=True)
-    parser.add_argument('--out',type = str,help ='Output Directory',required=True)
+    parser.add_argument('--out',type = str,help ='Output Directory',default = os.getcwd())
     parser.add_argument('--threshold-count','--tc',type =int,help ='Minimum count for covariate',default = 10)
 
     parser.add_argument('--test',action = 'store_true',help = 'Flag for test run.')
     parser.add_argument('--force',action = 'store_true',help = 'Flag for forcing run run.')
 
     args = parser.parse_args()
+    print(args)
     make_sure_path_exists(os.path.dirname(args.out))
     args.covariates = args.covariates.split(',')
     

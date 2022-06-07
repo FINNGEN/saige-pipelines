@@ -33,9 +33,6 @@ workflow conditional_analysis {
     }
    }
 
-   # PHENO/CHROM COMBO VERSION
-   #Array[File] cond_regions = flatten(extract_cond_regions.pheno_chrom_regions)
-   
    #SINGLE JOB PER LOCUS VERSION
    call merge_regions {input: docker =docker,hits=extract_cond_regions.gw_sig_res}
 

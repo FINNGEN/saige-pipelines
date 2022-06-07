@@ -172,13 +172,13 @@ if __name__ == '__main__':
     
     parser = argparse.ArgumentParser(description ="Recursive conditional analysis for regenie.")
 
-    parser.add_argument('--pval-threshold',type = float,help ='Threshold limit (pvar -log(mpval) ',default = 7)
-    parser.add_argument('--pheno',type = str,help ='Pheno column',required=True)
-    parser.add_argument('--out',type = str,help ='Output Directory',required=True)
+    parser.add_argument('--pval-threshold',type = float,help ='Threshold limit (-log(mpval)) ',default = 7)
+    parser.add_argument('--pheno',type = str,help ='Pheno column in pheno file',required=True)
+    parser.add_argument('--out',type = str,help ='Output Directory and prefix (e.g. /foo/bar/finngen)',required=True)
     parser.add_argument('--covariates',type = str,default = regenie_covariates,help='List of covariates')
     parser.add_argument('--pheno-file',type = file_exists,help ='Path to pheno file',required=True)
     parser.add_argument('--bgen',type = file_exists,help ='Path to bgen',required=True)
-    parser.add_argument('--sample-file',type = file_exists,help ='Path to pheno file',required=False)
+    parser.add_argument('--sample-file',type = file_exists,help ='Path to bgen sample file (if not in same directory as bgen)',required=False)
     parser.add_argument('--sumstats',type = file_exists,help ='Path to original sumstats',required=True)
     parser.add_argument('--regenie-params',type=str,help ='extra bgen params',default = ' --bt --bsize 200 ' )
     parser.add_argument('--null-file',type = file_exists,help ='File with null info.',required=True)
@@ -239,7 +239,7 @@ if __name__ == '__main__':
     logging.info(f"Using {args.threads} cpus for the regenie run.")
 
     # create tmp pheno file (lighter)
-    tmp_pheno_file = filter_pheno(args)
+    tmp_pheno_file = filter_pheno(args) 
     for locus,region in region_list:
         main(locus,region,args,tmp_pheno_file,sum_dict,args.threads)
                 
