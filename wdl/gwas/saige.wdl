@@ -53,7 +53,7 @@ task null {
         docker: "${docker}"
         cpu: "${cpu}"
         memory: "7 GB"
-        disks: "local-disk 20 HDD"
+        disks: "local-disk 200 HDD"
         zones: "europe-west1-b"
         preemptible: 2
         noAddress: true
@@ -80,7 +80,7 @@ workflow saige {
         }
 
         call summary.summary{
-            input: 
+            input:
                 pheno=pheno,
                 input_file=test_combine.out
         }
